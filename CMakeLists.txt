@@ -48,6 +48,7 @@ set(SRC_FILES   ${SRC_DIR}/netft/netft_rdt_driver.cpp
                 ${SRC_DIR}/netft/ft_listener.cpp
                 ${SRC_DIR}/ForceTorqueSensorHW.cpp
                 ${SRC_DIR}/ForceController.cpp
+                ${SRC_DIR}/TestRobotHW.cpp
 
 )
 

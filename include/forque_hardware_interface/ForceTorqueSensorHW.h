@@ -6,6 +6,8 @@
 #include <hardware_interface/robot_hw.h>
 #include <forque_hardware_interface/netft/netft_rdt_driver.h>
 #include <forque_hardware_interface/netft/netft_rdt_bias.h>
+#include <iostream>
+
 
 class ForceTorqueSensorHW : public ::hardware_interface::RobotHW {
   

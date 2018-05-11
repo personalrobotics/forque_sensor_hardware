@@ -25,6 +25,8 @@ void ForceTorqueSensorHW::update() {
     geometry_msgs::WrenchStamped data;
     netft->getData(data);
 
+    std::string msg = "FT: " + std::to_string(data.wrench.force.x) + " " + std::to_string(data.wrench.force.y) + " " + std::to_string(data.wrench.force.z) + " " + std::to_string(data.wrench.torque.x) + " " + std::to_string(data.wrench.torque.y) + " " + std::to_string(data.wrench.torque.z);
+    //std::cout << msg << std::endl;
     mForce[0] = data.wrench.force.x;
     mForce[1] = data.wrench.force.y;
     mForce[2] = data.wrench.force.z;
@@ -38,4 +40,6 @@ void ForceTorqueSensorHW::registerHandle(hardware_interface::ForceTorqueSensorIn
   interface.registerHandle(hardware_interface::ForceTorqueSensorHandle(
     mSensorName, mFrameId, &mForce[0], &mTorque[0]
   ));
+
+  hardware_interface::InterfaceManager::registerInterface(&interface);
 }

@@ -6,6 +6,7 @@
 #include <forque_hardware_interface/ForceController.h>
 #include <forque_hardware_interface/TestRobotHW.h>
 #include <forque_hardware_interface/ForceTorqueSensorHW.h>
+#include <ros/callback_queue.h>
 
 
 
@@ -16,7 +17,9 @@ int main(int argc, char** argv) {
 
   ROS_INFO("Starting ROS node.");
   ros::init(argc, argv, "forque_hardware_interface");
-  ros::NodeHandle nh("~");
+  ros::NodeHandle nh;
+  ros::CallbackQueue queue;
+  nh.setCallbackQueue(&queue);
 
 
 
@@ -26,7 +29,7 @@ int main(int argc, char** argv) {
   ForceTorqueSensorHW forceTorqueSensor("forqueSensor", "endEffectorFrameId", address);
   forceTorqueSensor.registerHandle(testRobotHW.forceTorqueInterface);
   
-  controller_manager::ControllerManager cm(&testRobotHW);
+  controller_manager::ControllerManager cm(&testRobotHW, nh);
 
   forceTorqueSensor.connect(false);
 
@@ -41,20 +44,17 @@ int main(int argc, char** argv) {
     update_rate.sleep();
   }*/
 
-  ros::AsyncSpinner spinner(2);
+  ros::AsyncSpinner spinner(0, &queue);
   spinner.start();
 
   ros::Time ts = ros::Time::now();
-
-  ros::Rate rate(50);
   while (ros::ok())
   {
     forceTorqueSensor.update();
     ros::Duration d = ros::Time::now() - ts;
     ts = ros::Time::now();
-    //robot.read();
     cm.update(ts, d);
-    //robot.write();
+    ros::spinOnce();
     update_rate.sleep();
   }
 
