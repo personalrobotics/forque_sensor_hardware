@@ -11,7 +11,7 @@
 
 class ForceTorqueSensorHW : public ::hardware_interface::RobotHW {
   
-  public:
+public:
 
   ForceTorqueSensorHW(std::string sensorName, std::string frameId, std::string address);
   void connect(bool simulate);
@@ -19,7 +19,7 @@ class ForceTorqueSensorHW : public ::hardware_interface::RobotHW {
 
   void registerHandle(hardware_interface::ForceTorqueSensorInterface& interface);
 
-  private:
+private:
   std::string mSensorName;
   std::string mFrameId;
   std::string mAddress;
@@ -27,6 +27,10 @@ class ForceTorqueSensorHW : public ::hardware_interface::RobotHW {
 
   std::array<double, 3> mForce;
   std::array<double, 3> mTorque;
+  
+  std::array<double, 6> bias;
+  const int totalBiasCollectionSteps = 400;
+  int biasCollectionStep;
 
 };
 

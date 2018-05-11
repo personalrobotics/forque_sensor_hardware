@@ -19,4 +19,7 @@ TestRobotHW::TestRobotHW() {
   jnt_pos_interface.registerHandle(pos_handle_b);
 
   registerInterface(&jnt_pos_interface);
+
+
+  hardware_interface::InterfaceManager::registerInterface(&forceTorqueInterface);
 }

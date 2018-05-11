@@ -38,16 +38,12 @@ find_package(aikido 0.0.2 REQUIRED
 )
 include_directories(${aikido_INCLUDE_DIRS})
 
-find_package(rewd_controllers REQUIRED)
-include_directories(${rewd_controllers_INCLUDE_DIRS})
-
 
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(SRC_FILES   ${SRC_DIR}/netft/netft_rdt_driver.cpp
                 ${SRC_DIR}/netft/netft_rdt_bias.cpp
                 ${SRC_DIR}/netft/ft_listener.cpp
                 ${SRC_DIR}/ForceTorqueSensorHW.cpp
-                ${SRC_DIR}/ForceController.cpp
                 ${SRC_DIR}/TestRobotHW.cpp
 
 )
@@ -58,7 +54,6 @@ add_executable(forque_hardware_interface_test
 target_link_libraries(forque_hardware_interface_test
   ${DART_LIBRARIES}
   ${aikido_LIBRARIES}
-  ${rewd_controllers_LIBRARIES}
   ${catkin_LIBRARIES}
   )
 

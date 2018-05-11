@@ -3,7 +3,6 @@
 #include <ros/ros.h>
 #include <geometry_msgs/WrenchStamped.h>
 #include <controller_manager/controller_manager.h>
-#include <forque_hardware_interface/ForceController.h>
 #include <forque_hardware_interface/TestRobotHW.h>
 #include <forque_hardware_interface/ForceTorqueSensorHW.h>
 #include <ros/callback_queue.h>
@@ -30,7 +29,6 @@ int main(int argc, char** argv) {
   forceTorqueSensor.registerHandle(testRobotHW.forceTorqueInterface);
   
   controller_manager::ControllerManager cm(&testRobotHW, nh);
-
   forceTorqueSensor.connect(false);
 
   ros::Rate update_rate(update_rate_hz);
