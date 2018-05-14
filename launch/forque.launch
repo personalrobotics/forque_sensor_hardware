@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+
+   <!-- load controllers -->
+   <rosparam file="$(find forque_sensor_hardware)/config/controllers.yaml" command="load" />
+   
+   
+   <node pkg="forque_sensor_hardware" 
+          name="forqueHW" 
+          type="forque_sensor_hardware" 
+          output="screen" />
+
+  <node name="ros_control_manager" pkg="controller_manager" type="spawner" args="force_torque_sensor_controller bias_controller" output="screen" />
+
+
+</launch>
