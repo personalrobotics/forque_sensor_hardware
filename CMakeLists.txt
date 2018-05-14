@@ -38,6 +38,8 @@ find_package(aikido 0.0.2 REQUIRED
 )
 include_directories(${aikido_INCLUDE_DIRS})
 
+find_package(pr_hardware_interfaces REQUIRED)
+include_directories(${pr_hardware_interfaces_INCLUDE_DIRS})
 
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(SRC_FILES   ${SRC_DIR}/netft/netft_rdt_driver.cpp
@@ -54,6 +56,7 @@ add_executable(forque_hardware_interface_test
 target_link_libraries(forque_hardware_interface_test
   ${DART_LIBRARIES}
   ${aikido_LIBRARIES}
+  ${pr_hardware_interfaces_LIBRARIES}
   ${catkin_LIBRARIES}
   )
 
