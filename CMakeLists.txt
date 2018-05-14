@@ -16,35 +16,14 @@ catkin_package(
 )
 include_directories(${catkin_INCLUDE_DIRS})
 
-find_package(DART REQUIRED)
-include_directories(${DART_INCLUDE_DIRS})
-
-find_package(aikido 0.0.2 REQUIRED
-  COMPONENTS
-    common
-    constraint
-    control
-    control_ros
-    distance
-    io
-    perception
-    planner
-    planner_ompl
-    planner_parabolic
-    planner_vectorfield
-    robot
-    rviz
-    statespace
-)
-include_directories(${aikido_INCLUDE_DIRS})
+find_package(netft_rdt_driver REQUIRED)
+include_directories(${netft_rdt_driver_INCLUDE_DIRS})
 
 find_package(pr_hardware_interfaces REQUIRED)
 include_directories(${pr_hardware_interfaces_INCLUDE_DIRS})
 
 set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
-set(SRC_FILES   ${SRC_DIR}/netft/netft_rdt_driver.cpp
-                ${SRC_DIR}/netft/netft_rdt_bias.cpp
-                ${SRC_DIR}/netft/ft_listener.cpp
+set(SRC_FILES   ${SRC_DIR}/main.cpp
                 ${SRC_DIR}/ForqueSensorHW.cpp
 )
 
@@ -52,9 +31,8 @@ add_executable(forque_sensor_hardware
   src/main.cpp ${SRC_FILES})
 
 target_link_libraries(forque_sensor_hardware
-  ${DART_LIBRARIES}
-  ${aikido_LIBRARIES}
   ${pr_hardware_interfaces_LIBRARIES}
+  ${netft_rdt_driver_LIBRARIES}
   ${catkin_LIBRARIES}
   )
 

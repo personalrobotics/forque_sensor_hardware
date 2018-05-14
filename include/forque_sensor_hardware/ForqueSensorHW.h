@@ -7,8 +7,7 @@
 #include <hardware_interface/robot_hw.h>
 #include <pr_hardware_interfaces/TriggerableInterface.h>
 #include <pr_hardware_interfaces/TriggerState.h>
-#include <forque_sensor_hardware/netft/netft_rdt_driver.h>
-#include <forque_sensor_hardware/netft/netft_rdt_bias.h>
+#include <netft_rdt_driver/netft_rdt_driver.h>
 
 
 class ForqueSensorHW : public ::hardware_interface::RobotHW {
