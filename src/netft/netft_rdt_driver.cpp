@@ -32,7 +32,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#include "forque_hardware_interface/netft/netft_rdt_driver.h"
+#include "forque_sensor_hardware/netft/netft_rdt_driver.h"
 #include <stdint.h>
 #include <exception>
 

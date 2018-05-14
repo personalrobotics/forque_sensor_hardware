@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(forque_hardware_interface)
+project(forque_sensor_hardware)
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -48,10 +48,10 @@ set(SRC_FILES   ${SRC_DIR}/netft/netft_rdt_driver.cpp
                 ${SRC_DIR}/ForqueSensorHW.cpp
 )
 
-add_executable(forque_hardware_interface_test
+add_executable(forque_sensor_hardware
   src/main.cpp ${SRC_FILES})
 
-target_link_libraries(forque_hardware_interface_test
+target_link_libraries(forque_sensor_hardware
   ${DART_LIBRARIES}
   ${aikido_LIBRARIES}
   ${pr_hardware_interfaces_LIBRARIES}
@@ -65,4 +65,4 @@ $<INSTALL_INTERFACE:include>
 )
 
 
-install(TARGETS forque_hardware_interface_test RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+install(TARGETS forque_sensor_hardware RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

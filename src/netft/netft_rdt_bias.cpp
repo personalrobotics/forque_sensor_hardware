@@ -1,4 +1,4 @@
-#include "forque_hardware_interface/netft/netft_rdt_bias.h"
+#include "forque_sensor_hardware/netft/netft_rdt_bias.h"
 
 namespace netft_rdt_driver
 {

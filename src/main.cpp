@@ -3,8 +3,7 @@
 #include <ros/ros.h>
 #include <geometry_msgs/WrenchStamped.h>
 #include <controller_manager/controller_manager.h>
-#include <forque_hardware_interface/TestRobotHW.h>
-#include <forque_hardware_interface/ForqueSensorHW.h>
+#include <forque_sensor_hardware/ForqueSensorHW.h>
 #include <ros/callback_queue.h>
 
 bool shouldShutdown = false;

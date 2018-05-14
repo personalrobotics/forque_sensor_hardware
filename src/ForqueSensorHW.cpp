@@ -1,5 +1,5 @@
 
-#include "forque_hardware_interface/ForqueSensorHW.h"
+#include "forque_sensor_hardware/ForqueSensorHW.h"
 
 ForqueSensorHW::ForqueSensorHW(std::string sensorName, std::string frameId, std::string ipAddress) :
     mSensorName(sensorName),
