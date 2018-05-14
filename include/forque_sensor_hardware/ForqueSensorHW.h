@@ -10,33 +10,55 @@
 #include <netft_rdt_driver/netft_rdt_driver.h>
 
 
+namespace forqueSensorHW {
+
+/// The Hardware Interface for the Force/Torque sensor of the Forque.
+/// Responsible for connecting, reading data, and handling bias.
 class ForqueSensorHW : public ::hardware_interface::RobotHW {
   
 public:
 
+  /// Constructor
+  /// \param[in] sensorName Name of the sensor. Data will be published to this topic.
+  /// \param[in] frameId Name of the sensor's frame.
+  /// \param[in] address IP address of the sensor.
   ForqueSensorHW(std::string sensorName, std::string frameId, std::string address);
+
+  /// Connects to the sensor.
+  /// \return True if the connection was established successfully.
   bool connect();
+
+  /// Reads from the sensor, handles the data and more.
+  /// Needs to be called regularly from  the main loop.
   void update();
 
-  void registerHandles();
-
 private:
-  std::string mSensorName;
-  std::string mFrameId;
-  std::string mAddress;
+  std::string sensorName;
+  std::string frameId;
+  std::string address;
+
+  /// Interface of the netft sensor device
   std::unique_ptr<netft_rdt_driver::NetFTRDTDriver> netft;
 
-  std::array<double, 3> mForce;
-  std::array<double, 3> mTorque;
+  /// Stores the current force.
+  std::array<double, 3> force;
+
+  /// Stores the current torque.
+  std::array<double, 3> torque;
   
+  // A bunch of variables to handle bias calculation
   bool shouldCollectBiasData = false;
   std::array<double, 6> bias;
   const int totalBiasCollectionSteps = 400;
-  int biasCollectionStep;
+  int biasCollectionStep = 0;
 
+  /// Kicks off bias caluclation and marks end
   pr_hardware_interfaces::TriggerState mBiasState;
+
   hardware_interface::ForceTorqueSensorInterface forceTorqueInterface;
   pr_hardware_interfaces::TriggerableInterface biasTriggerInterface; 
 };
+
+}
 
 #endif

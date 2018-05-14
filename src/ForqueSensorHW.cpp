@@ -1,6 +1,7 @@
 
 #include "forque_sensor_hardware/ForqueSensorHW.h"
 
+//==============================================================================
 ForqueSensorHW::ForqueSensorHW(std::string sensorName, std::string frameId,
                                std::string ipAddress)
     : mSensorName(sensorName), mFrameId(frameId), mAddress(ipAddress),
@@ -9,9 +10,22 @@ ForqueSensorHW::ForqueSensorHW(std::string sensorName, std::string frameId,
   mForce.fill(0);
   mTorque.fill(0);
   bias.fill(0);
-  biasCollectionStep = 0;
+
+  // Register Handles
+  hardware_interface::ForceTorqueSensorHandle forqueSensorHandle(
+      mSensorName, mFrameId, &mForce[0], &mTorque[0]);
+  forceTorqueInterface.registerHandle(forqueSensorHandle);
+  hardware_interface::InterfaceManager::registerInterface(
+      &forceTorqueInterface);
+
+  pr_hardware_interfaces::TriggerableHandle biasHandle("/biasTrigger",
+                                                       &mBiasState);
+  biasTriggerInterface.registerHandle(biasHandle);
+  hardware_interface::InterfaceManager::registerInterface(
+      &biasTriggerInterface);
 }
 
+//==============================================================================
 bool ForqueSensorHW::connect() {
   try {
     netft = std::unique_ptr<netft_rdt_driver::NetFTRDTDriver>(
@@ -24,6 +38,7 @@ bool ForqueSensorHW::connect() {
   return true;
 }
 
+//==============================================================================
 void ForqueSensorHW::update() {
 
   if (mBiasState == pr_hardware_interfaces::TRIGGER_REQUESTED) {
@@ -72,16 +87,3 @@ void ForqueSensorHW::update() {
   }
 }
 
-void ForqueSensorHW::registerHandles() {
-  hardware_interface::ForceTorqueSensorHandle forqueSensorHandle(
-      mSensorName, mFrameId, &mForce[0], &mTorque[0]);
-  forceTorqueInterface.registerHandle(forqueSensorHandle);
-  hardware_interface::InterfaceManager::registerInterface(
-      &forceTorqueInterface);
-
-  pr_hardware_interfaces::TriggerableHandle biasHandle("/biasTrigger",
-                                                       &mBiasState);
-  biasTriggerInterface.registerHandle(biasHandle);
-  hardware_interface::InterfaceManager::registerInterface(
-      &biasTriggerInterface);
-}
