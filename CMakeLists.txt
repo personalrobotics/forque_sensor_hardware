@@ -45,9 +45,7 @@ set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(SRC_FILES   ${SRC_DIR}/netft/netft_rdt_driver.cpp
                 ${SRC_DIR}/netft/netft_rdt_bias.cpp
                 ${SRC_DIR}/netft/ft_listener.cpp
-                ${SRC_DIR}/ForceTorqueSensorHW.cpp
-                ${SRC_DIR}/TestRobotHW.cpp
-
+                ${SRC_DIR}/ForqueSensorHW.cpp
 )
 
 add_executable(forque_hardware_interface_test

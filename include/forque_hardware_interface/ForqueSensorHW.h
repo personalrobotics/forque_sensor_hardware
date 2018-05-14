@@ -11,16 +11,15 @@
 #include <forque_hardware_interface/netft/netft_rdt_bias.h>
 
 
-class ForceTorqueSensorHW : public ::hardware_interface::RobotHW {
+class ForqueSensorHW : public ::hardware_interface::RobotHW {
   
 public:
 
-  ForceTorqueSensorHW(std::string sensorName, std::string frameId, std::string address);
-  bool connect(bool simulate);
+  ForqueSensorHW(std::string sensorName, std::string frameId, std::string address);
+  bool connect();
   void update();
 
-  void registerHandle(hardware_interface::ForceTorqueSensorInterface& interface);
-  void registerHandleTrigger(pr_hardware_interfaces::TriggerableInterface& interface);
+  void registerHandles();
 
 private:
   std::string mSensorName;
@@ -37,6 +36,8 @@ private:
   int biasCollectionStep;
 
   pr_hardware_interfaces::TriggerState mBiasState;
+  hardware_interface::ForceTorqueSensorInterface forceTorqueInterface;
+  pr_hardware_interfaces::TriggerableInterface biasTriggerInterface; 
 };
 
 #endif

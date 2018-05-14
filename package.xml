@@ -17,8 +17,10 @@
 
 
 
+  
   <buildtool_depend>catkin</buildtool_depend>
 
+  <build_depend>aikido</build_depend>
   <build_depend>controller_manager</build_depend>
   <run_depend>controller_manager</run_depend>
 

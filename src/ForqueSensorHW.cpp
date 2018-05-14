@@ -1,7 +1,7 @@
 
-#include "forque_hardware_interface/ForceTorqueSensorHW.h"
+#include "forque_hardware_interface/ForqueSensorHW.h"
 
-ForceTorqueSensorHW::ForceTorqueSensorHW(std::string sensorName, std::string frameId, std::string ipAddress) :
+ForqueSensorHW::ForqueSensorHW(std::string sensorName, std::string frameId, std::string ipAddress) :
     mSensorName(sensorName),
     mFrameId(frameId),
     mAddress(ipAddress),
@@ -13,27 +13,18 @@ ForceTorqueSensorHW::ForceTorqueSensorHW(std::string sensorName, std::string fra
   biasCollectionStep = 0;
 }
 
-bool ForceTorqueSensorHW::connect(bool simulate) {
-  if (simulate) {
-    mForce[0] = 12.23;
-  } else {
+bool ForqueSensorHW::connect() {
     try {
-      netft = std::unique_ptr<netft_rdt_driver::NetFTRDTDriver>( new netft_rdt_driver::NetFTRDTDriver(mAddress));
-    } catch (std::runtime_error e) {
-      netft = nullptr;
-      std::cerr << "Error when starting NetFT device: " << e.what() << std::endl;
-      return false;
-    }
+    netft = std::unique_ptr<netft_rdt_driver::NetFTRDTDriver>( new netft_rdt_driver::NetFTRDTDriver(mAddress));
+  } catch (std::runtime_error e) {
+    netft = nullptr;
+    std::cerr << "Error when starting NetFT device: " << e.what() << std::endl;
+    return false;
   }
   return true;
 }
 
-void ForceTorqueSensorHW::update() {
-  
-  static int counter = 0;
-  if (counter++ == 40) {
-    counter = 0;
-  }
+void ForqueSensorHW::update() {
 
   if (mBiasState == pr_hardware_interfaces::TRIGGER_REQUESTED) {
     shouldCollectBiasData = true;
@@ -75,12 +66,12 @@ void ForceTorqueSensorHW::update() {
   }
 }
 
-void ForceTorqueSensorHW::registerHandle(hardware_interface::ForceTorqueSensorInterface& interface) {
+void ForqueSensorHW::registerHandles() {
   hardware_interface::ForceTorqueSensorHandle forqueSensorHandle(mSensorName, mFrameId, &mForce[0], &mTorque[0]);
-  interface.registerHandle(forqueSensorHandle);
-}
+  forceTorqueInterface.registerHandle(forqueSensorHandle);
+  hardware_interface::InterfaceManager::registerInterface(&forceTorqueInterface);
 
-void ForceTorqueSensorHW::registerHandleTrigger(pr_hardware_interfaces::TriggerableInterface& interface) {
   pr_hardware_interfaces::TriggerableHandle biasHandle("/biasTrigger", &mBiasState);
-  interface.registerHandle(biasHandle);
+  biasTriggerInterface.registerHandle(biasHandle);
+  hardware_interface::InterfaceManager::registerInterface(&biasTriggerInterface);
 }
