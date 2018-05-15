@@ -69,16 +69,6 @@ if(CLANG_FORMAT_EXECUTABLE)
     DEPENDS ${CLANG_FORMAT_EXECUTABLE}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   )
-
-  add_custom_target(check-format
-    COMMAND ${CMAKE_COMMAND} -E echo "Checking code style of"
-            "${NUM_SOURCE_FILES} files... "
-    COMMAND ${CMAKE_SOURCE_DIR}/tools/check_format.sh
-            ${CLANG_FORMAT_EXECUTABLE} ${ALL_SOURCE_FILES}
-    COMMAND ${CMAKE_COMMAND} -E echo "Done."
-    DEPENDS ${CLANG_FORMAT_EXECUTABLE}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  )
 else()
   message(STATUS "Could not find clang-format. Please install "
       "clang-format to enable automatic code formatting."

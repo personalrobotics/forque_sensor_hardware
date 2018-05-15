@@ -46,6 +46,7 @@ void ForqueSensorHW::update() {
   if (biasState == pr_hardware_interfaces::TRIGGER_REQUESTED) {
     shouldCollectBiasData = true;
     biasState = pr_hardware_interfaces::TRIGGER_PENDING;
+    ROS_INFO("Starting F/T sensor calibration");
   }
 
   if (netft) {
@@ -70,15 +71,9 @@ void ForqueSensorHW::update() {
         shouldCollectBiasData = false;
         biasCollectionStep = 0;
         biasState = pr_hardware_interfaces::TRIGGER_IDLE;
+        ROS_INFO("Finished F/T sensor calibration");
       }
     } else {
-      std::string msg = "FT: " + std::to_string(data.wrench.force.x) + " " +
-                        std::to_string(data.wrench.force.y) + " " +
-                        std::to_string(data.wrench.force.z) + " " +
-                        std::to_string(data.wrench.torque.x) + " " +
-                        std::to_string(data.wrench.torque.y) + " " +
-                        std::to_string(data.wrench.torque.z);
-      // ROS_INFO(msg.c_str());
       force[0] = data.wrench.force.x - bias[0];
       force[1] = data.wrench.force.y - bias[1];
       force[2] = data.wrench.force.z - bias[2];

@@ -13,7 +13,8 @@
 namespace forqueSensorHW {
 
 /// The Hardware Interface for the Force/Torque sensor of the Forque.
-/// Responsible for connecting, reading data, and handling bias.
+/// Responsible for connecting, reading data, and calibrating the sensor.
+/// Reponds to Trigger signals to start a calibration.
 class ForqueSensorHW : public ::hardware_interface::RobotHW {
   
 public:
@@ -52,7 +53,7 @@ private:
   const int totalBiasCollectionSteps = 400;
   int biasCollectionStep = 0;
 
-  /// Kicks off bias caluclation and marks end
+  /// Kicks off bias calculation and marks end
   pr_hardware_interfaces::TriggerState biasState;
 
   hardware_interface::ForceTorqueSensorInterface forceTorqueInterface;

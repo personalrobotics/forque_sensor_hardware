@@ -6,3 +6,4 @@ force_torque_sensor_controller:
 bias_controller:
   type: trigger_controller/TriggerController
   resource_name: /biasTrigger
+

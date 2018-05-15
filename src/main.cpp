@@ -8,7 +8,7 @@
 
 bool shouldShutdown = false;
 
-void mySigintHandler(int sig) { shouldShutdown = true; }
+void sigintHandler(int sig) { shouldShutdown = true; }
 
 int main(int argc, char **argv) {
   // Hardcoded values
@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
   ros::NodeHandle nh;
   ros::CallbackQueue queue;
   nh.setCallbackQueue(&queue);
-  signal(SIGINT, mySigintHandler);
+  signal(SIGINT, sigintHandler);
 
   // Starting other stuff
   forqueSensorHW::ForqueSensorHW forqueSensorHW("forqueSensor",
