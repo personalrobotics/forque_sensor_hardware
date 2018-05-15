@@ -25,8 +25,8 @@ int main(int argc, char **argv) {
   signal(SIGINT, mySigintHandler);
 
   // Starting other stuff
-  ForqueSensorHW forqueSensorHW("forqueSensor", "endEffectorFrameId", address);
-  forqueSensorHW.registerHandles();
+  forqueSensorHW::ForqueSensorHW forqueSensorHW("forqueSensor",
+                                                "endEffectorFrameId", address);
 
   controller_manager::ControllerManager cm(&forqueSensorHW, nh);
   if (!forqueSensorHW.connect()) {

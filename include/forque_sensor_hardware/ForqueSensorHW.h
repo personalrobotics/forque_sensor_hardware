@@ -53,7 +53,7 @@ private:
   int biasCollectionStep = 0;
 
   /// Kicks off bias caluclation and marks end
-  pr_hardware_interfaces::TriggerState mBiasState;
+  pr_hardware_interfaces::TriggerState biasState;
 
   hardware_interface::ForceTorqueSensorInterface forceTorqueInterface;
   pr_hardware_interfaces::TriggerableInterface biasTriggerInterface; 
