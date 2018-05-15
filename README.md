@@ -8,6 +8,7 @@ The Hardware Interface can connect to the F/T sensor via IP, publish its data as
 
 1. Connect the Forque Sensor to power and to your computer via ethernet.
 2. Make sure the sensor is reachable by ```ping 192.168.1.1```
+3. Clone this repo as well as the [net-ft driver dependency](https://github.com/epfl-lasa/net-ft-ros)
 3. ```caktin build forque_sensor_hardware```
 4. ```roslaunch forque_sensor_hardware forque.launch```
 
