@@ -19,7 +19,7 @@ You can trigger a calibration process by<br/>
 
 ### Troubleshooting
 
-If you can't connect to the sensor, consider running ```sudo ifconfig eth1 192.168.1.2 netmask 255.255.255.0``` to setup networking temporarily or configure your ```/etc/hosts``` file like to set it up permanently:
+If you can't connect to the sensor, consider running ```sudo ifconfig eth1 192.168.1.2 netmask 255.255.255.0``` to setup networking temporarily or configure your ```/etc/hosts``` file like this to set it up permanently:
 
 ```
 auto eth1
