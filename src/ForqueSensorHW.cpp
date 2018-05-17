@@ -28,14 +28,19 @@ ForqueSensorHW::ForqueSensorHW(std::string sensorName, std::string frameId,
 }
 
 //==============================================================================
-bool ForqueSensorHW::connect() {
-  try {
-    netft = std::unique_ptr<netft_rdt_driver::NetFTRDTDriver>(
-        new netft_rdt_driver::NetFTRDTDriver(address));
-  } catch (std::runtime_error e) {
+bool ForqueSensorHW::connect(bool simulation) {
+  if (simulation) {
+    ROS_WARN("NetFT is only simulated");
     netft = nullptr;
-    std::cerr << "Error when starting NetFT device: " << e.what() << std::endl;
-    return false;
+  } else {
+    try {
+      netft = std::unique_ptr<netft_rdt_driver::NetFTRDTDriver>(
+          new netft_rdt_driver::NetFTRDTDriver(address));
+    } catch (std::runtime_error e) {
+      netft = nullptr;
+      std::cerr << "Error when starting NetFT device: " << e.what() << std::endl;
+      return false;
+    }
   }
   return true;
 }
