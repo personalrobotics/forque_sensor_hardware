@@ -42,6 +42,11 @@ bool ForqueSensorHW::connect(bool simulation) {
       return false;
     }
   }
+
+  // start bias collection
+  shouldCollectBiasData = true;
+  biasState = pr_hardware_interfaces::TRIGGER_PENDING;
+  ROS_INFO("Starting F/T sensor calibration");
   return true;
 }
 
