@@ -6,11 +6,12 @@
    
    
    <node pkg="forque_sensor_hardware" 
+          ns="forque"
           name="forqueHW" 
           type="forque_sensor_hardware" 
           output="screen" />
 
-  <node name="ros_control_manager" pkg="controller_manager" type="spawner" args="force_torque_sensor_controller bias_controller" output="screen" />
+  <node ns="forque" name="ros_control_manager" pkg="controller_manager" type="spawner" args="force_torque_sensor_controller bias_controller" output="screen" />
 
 
 </launch>

@@ -1,9 +1,9 @@
 
-force_torque_sensor_controller:
+forque/force_torque_sensor_controller:
   type: force_torque_sensor_controller/ForceTorqueSensorController
   publish_rate: 100
 
-bias_controller:
+forque/bias_controller:
   type: trigger_controller/TriggerController
   resource_name: /biasTrigger
 
