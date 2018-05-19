@@ -27,7 +27,7 @@ public:
 
   /// Connects to the sensor.
   /// \return True if the connection was established successfully.
-  bool connect();
+  bool connect(bool simulation = false);
 
   /// Reads from the sensor, handles the data and more.
   /// Needs to be called regularly from  the main loop.

@@ -26,10 +26,10 @@ int main(int argc, char **argv) {
 
   // Starting other stuff
   forqueSensorHW::ForqueSensorHW forqueSensorHW("forqueSensor",
-                                                "endEffectorFrameId", address);
+                                                "forqueSensorFrame", address);
 
   controller_manager::ControllerManager cm(&forqueSensorHW, nh);
-  if (!forqueSensorHW.connect()) {
+  if (!forqueSensorHW.connect(true)) {
     return 0;
   }
 
