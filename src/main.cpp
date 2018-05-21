@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
                                                 "forqueSensorFrame", address);
 
   controller_manager::ControllerManager cm(&forqueSensorHW, nh);
-  if (!forqueSensorHW.connect(true)) {
+  if (!forqueSensorHW.connect(false)) {
     return 0;
   }
 
