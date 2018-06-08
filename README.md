@@ -29,4 +29,4 @@ iface eth1 inet static
   netmask 255.255.255.0
 ```
 
-These instructions are for Ubuntu 14.04 and may differ depending on your current networking setup.
+These instructions are for Ubuntu 14.04 and may differ depending on your current networking setup. ```eth1``` is the name of the appropriate network interface.
