@@ -23,10 +23,20 @@ You can trigger a calibration process by<br/>
 If you can't connect to the sensor, consider running ```sudo ifconfig eth1 192.168.1.2 netmask 255.255.255.0``` to setup networking temporarily or configure your ```/etc/hosts``` file like this to set it up permanently:
 
 ```
-auto eth1
-iface eth1 inet static
+auto enx0023576c5936
+  iface enx0023576c5936 inet static
   address 192.168.1.2
   netmask 255.255.255.0
+  broadcast 192.168.1.255
+  gateway 192.168.1.1
+  dns-nameservers 8.8.8.8
 ```
 
-These instructions are for Ubuntu 14.04 and may differ depending on your current networking setup. ```eth1``` is the name of the appropriate network interface.
+These instructions are for Ubuntu 16.04 and may differ depending on your current networking setup. ```enx0023576c5936``` is the name of the appropriate network interface.
+
+After changing the settings, you may need to run
+```
+sudo ip addr flush enx0023576c5936
+sudo systemctl restart networking.service
+```
+
