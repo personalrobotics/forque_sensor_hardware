@@ -31,7 +31,8 @@ public:
 
   /// Reads from the sensor, handles the data and more.
   /// Needs to be called regularly from  the main loop.
-  void update();
+  /// \return True if valid data received. False otherwise.
+  bool update();
 
 private:
   std::string sensorName;
