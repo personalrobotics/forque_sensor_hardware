@@ -51,7 +51,7 @@ bool ForqueSensorHW::connect(bool simulation) {
 }
 
 //==============================================================================
-void ForqueSensorHW::update() {
+bool ForqueSensorHW::update() {
 
   if (biasState == pr_hardware_interfaces::TRIGGER_REQUESTED) {
     shouldCollectBiasData = true;
@@ -59,7 +59,7 @@ void ForqueSensorHW::update() {
     ROS_INFO("Starting F/T sensor calibration");
   }
 
-  if (netft) {
+  if (netft && netft->waitForNewData()) {
     geometry_msgs::WrenchStamped data;
     netft->getData(data);
 
@@ -91,6 +91,10 @@ void ForqueSensorHW::update() {
       torque[1] = data.wrench.torque.y - bias[4];
       torque[2] = data.wrench.torque.z - bias[5];
     }
+    return true;
+  } else {
+    ROS_ERROR("NetFT Connection Lost.");
+    return false;
   }
 }
 }

@@ -7,6 +7,7 @@
 #include <ros/ros.h>
 
 bool shouldShutdown = false;
+bool errorShutdown = false;
 
 void sigintHandler(int sig) { shouldShutdown = true; }
 
@@ -40,7 +41,10 @@ int main(int argc, char **argv) {
   ros::Rate update_rate(update_rate_hz);
   ros::Time ts = ros::Time::now();
   while (!shouldShutdown) {
-    forqueSensorHW.update();
+    if (!forqueSensorHW.update()) {
+      errorShutdown = true;
+      break;
+    }
     ros::Duration d = ros::Time::now() - ts;
     ts = ros::Time::now();
     cm.update(ts, d);
@@ -48,14 +52,16 @@ int main(int argc, char **argv) {
   }
 
   // wait for a bit, so controller_manager can unload controllers
-  ros::Duration shutdownDuration(1.5);
-  ros::Time shutdownBegin = ros::Time::now();
-  while (ros::Time::now() - shutdownBegin < shutdownDuration) {
-    ros::Duration d = ros::Time::now() - ts;
-    ts = ros::Time::now();
-    cm.update(ts, d);
+  if (!errorShutdown) {
+    ros::Duration shutdownDuration(1.5);
+    ros::Time shutdownBegin = ros::Time::now();
+    while (ros::Time::now() - shutdownBegin < shutdownDuration) {
+      ros::Duration d = ros::Time::now() - ts;
+      ts = ros::Time::now();
+      cm.update(ts, d);
+    }
   }
-
+  
   spinner.stop();
   return 0;
 }
