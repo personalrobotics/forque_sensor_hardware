@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
   ros::Rate update_rate(update_rate_hz);
   ros::Time ts = ros::Time::now();
   while (!shouldShutdown) {
-    if(!forqueSensorHW.update()) {
+    if (!forqueSensorHW.update()) {
       errorShutdown = true;
       break;
     }
@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
   }
 
   // wait for a bit, so controller_manager can unload controllers
-  if(!errorShutdown) {
+  if (!errorShutdown) {
     ros::Duration shutdownDuration(1.5);
     ros::Time shutdownBegin = ros::Time::now();
     while (ros::Time::now() - shutdownBegin < shutdownDuration) {
