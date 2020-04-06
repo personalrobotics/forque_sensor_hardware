@@ -13,7 +13,6 @@ void sigintHandler(int sig) { shouldShutdown = true; }
 
 int main(int argc, char **argv) {
   // Hardcoded values
-  std::string address = "192.168.1.1";
   float update_rate_hz = 100;
 
   // Starting ROS
@@ -24,6 +23,11 @@ int main(int argc, char **argv) {
   ros::CallbackQueue queue;
   nh.setCallbackQueue(&queue);
   signal(SIGINT, sigintHandler);
+
+  // Get Forque IP
+  std::string address;
+  ros::param::param<std::string>("/forque_ip", address, "192.168.1.1");
+  ROS_INFO_STREAM("NetFT Address: " << address);
 
   // Starting other stuff
   forqueSensorHW::ForqueSensorHW forqueSensorHW("forqueSensor",
