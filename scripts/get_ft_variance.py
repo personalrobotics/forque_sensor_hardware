@@ -75,3 +75,4 @@ if __name__ == "__main__":
     sub = rospy.Subscriber('/forque/forqueSensor', WrenchStamped, get_ft_variance.ft_callback)
 
     rospy.spin()
+    
