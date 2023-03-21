@@ -393,6 +393,22 @@ WirelessFTDataPacket WirelessFT::readDataPacket()
   // Convert timestamp to system time
   ret.timestamp = toSystemTimestamp(buffer.timestamp);
 
+  // See what transducers are available
+  std::vector<int> transducers;
+  for (int i = 0; i < NUMBER_OF_TRANSDUCERS; i++) {
+    bool status = buffer.transMask & (1 << i);
+    ret.transducer_present[i] = status;
+    if (status) transducers.push_back(i);
+  }
+
+  // Copy data over
+  for (int i = 0; i < transducers.size(); i++) {
+    memcpy(
+      &(ret.counts[transducers[i]][0]), &(buffer.sg[i][0]),
+      sizeof(signed long) * NUMBER_OF_STRAIN_GAGES);
+  }
+
+  ret.valid = true;
   return ret;
 }
 

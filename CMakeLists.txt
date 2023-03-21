@@ -17,6 +17,15 @@ find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 
+## Building
+add_executable(forque_sensor_hardware src/main.cpp src/wireless_ft.cpp)
+ament_target_dependencies(forque_sensor_hardware rclcpp std_msgs)
+
+install(TARGETS
+  forque_sensor_hardware
+  DESTINATION lib/${PROJECT_NAME})
+
+## Testing
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
