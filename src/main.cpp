@@ -25,7 +25,12 @@ private:
   void timer_callback()
   {
     auto packet = mWFT->readDataPacket();
-    RCLCPP_INFO(this->get_logger(), "Valid? '%d'", packet.valid);
+    auto latency =
+      std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()) -
+      packet.timestamp.time_since_epoch();
+    RCLCPP_INFO(this->get_logger(), "System Time: %f", std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count());
+    RCLCPP_INFO(this->get_logger(), "Device Time: %f", packet.timestamp.time_since_epoch().count());
+    RCLCPP_INFO(this->get_logger(), "Valid? '%d'; Latency: '%f'", packet.valid, latency.count());
   }
 
   rclcpp::TimerBase::SharedPtr timer_;
@@ -36,17 +41,18 @@ int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
   auto logger = rclcpp::get_logger("General");
+  RCLCPP_INFO(logger, "Entering Node.");
 
   // Init Wireless F/T
   auto wft = std::make_shared<WirelessFT>();
   if (!wft->telnetConnect("ada-router")) {
-    RCLCPP_ERROR(logger, "Cannot connect to F/T telnet.")
+    RCLCPP_ERROR(logger, "Cannot connect to F/T telnet.");
     rclcpp::shutdown();
     return -1;
   }
   if (!wft->udpConfigure("ada-router")) {
-    telnetDisconnect();
-    RCLCPP_ERROR(logger, "Cannot connect to F/T UDP.")
+    wft->telnetDisconnect();
+    RCLCPP_ERROR(logger, "Cannot connect to F/T UDP.");
     rclcpp::shutdown();
     return -1;
   }
@@ -58,6 +64,7 @@ int main(int argc, char * argv[])
   rclcpp::shutdown();
 
   // Cleanup Wireless F/T
+  RCLCPP_INFO(logger, "Node Cleanup...");
   wft->udpStopStreaming();
   wft->udpClose();
   wft->telnetDisconnect();

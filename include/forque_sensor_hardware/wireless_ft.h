@@ -114,7 +114,7 @@ struct UDPPacket
 typedef struct WirelessFTDataPacket
 {
   bool valid = false;
-  std::chrono::time_point<std::chrono::system_clock> timestamp;
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<double>> timestamp;
   bool transducer_present[NUMBER_OF_TRANSDUCERS];
   signed long counts[NUMBER_OF_TRANSDUCERS][NUMBER_OF_STRAIN_GAGES];
 } WirelessFTDataPacket;
@@ -130,7 +130,7 @@ public:
   // Connect to telnet socket on given hostname and port
   // Returns 0 on success, -1 on failure
   bool telnetConnect(std::string hostname, int port = DEFAULT_TELNET_PORT);
-  void telnetDisconnect();
+  bool telnetDisconnect();
 
   // Basic Commands
 

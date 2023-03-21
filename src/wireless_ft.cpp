@@ -5,15 +5,33 @@
 #include <netinet/udp.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include <chrono>
 #include <cmath>
-#include <format>
+#include <cstring>
+#include <iostream>
+#include <memory>
 #include <mutex>
+#include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace forque_sensor_hardware
 {
+
+template <typename... Args>
+std::string string_format(const std::string & format, Args... args)
+{
+  int size_s = std::snprintf(nullptr, 0, format.c_str(), args...) + 1;  // Extra space for '\0'
+  if (size_s <= 0) {
+    throw std::runtime_error("Error during formatting.");
+  }
+  auto size = static_cast<size_t>(size_s);
+  std::unique_ptr<char[]> buf(new char[size]);
+  std::snprintf(buf.get(), size, format.c_str(), args...);
+  return std::string(buf.get(), buf.get() + size - 1);  // We don't want the '\0' inside
+}
 
 static inline void verbosePrint(bool verbose, std::string str)
 {
@@ -62,6 +80,7 @@ bool WirelessFT::telnetConnect(std::string hostname, int port)
   bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
 
   // Initialize Socket
+  verbosePrint(mVerbose, "Creating socket...");
   mTelnetSocket = socket(AF_INET, SOCK_STREAM, 0);
   if (mTelnetSocket < 0) {
     errorPrint("Cannot init socket");
@@ -69,17 +88,19 @@ bool WirelessFT::telnetConnect(std::string hostname, int port)
   }
 
   // Connect to Socket
+  verbosePrint(mVerbose, "Connecting...");
   if (connect(mTelnetSocket, (sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
     errorPrint(
-      std::format("error connecting to socket at host '{}' port '{}'", hostname.c_str(), port));
+      string_format("error connecting to socket at host '%s' port '%d'", hostname.c_str(), port));
     close(mTelnetSocket);
     mTelnetSocket = -1;
     return false;
   }
 
   // Set NoDelay Socket Option
+  verbosePrint(mVerbose, "Adding nodelay...");
   int nodelay = 1;  // 1=on, 0=off
-  int result = setsockopt(telnetSocket, IPPROTO_TCP, TCP_NODELAY, (char *)&nodelay, sizeof(int));
+  int result = setsockopt(mTelnetSocket, IPPROTO_TCP, TCP_NODELAY, (char *)&nodelay, sizeof(int));
   if (result < 0) {
     errorPrint("Warning: failed to set TCP_NODELAY on the socket");
   }
@@ -118,7 +139,7 @@ bool WirelessFT::telnetCommand(std::string & response, std::string command, unsi
   }
 
   try {
-    verbosePrint(mVerbose, std::format("sending telnet command '{}'", cmd.c_str()));
+    verbosePrint(mVerbose, string_format("sending telnet command '%s'", command.c_str()));
 
     // size is big enough for all documented Wireless FT data packets
     char buffer[2048];
@@ -132,25 +153,25 @@ bool WirelessFT::telnetCommand(std::string & response, std::string command, unsi
       response = "";
       return false;
     } else {
-      verbosePrint(mVerbose, std::format("socket write: sent {} bytes, ok.", n));
+      verbosePrint(mVerbose, string_format("socket write: sent %d bytes, ok.", n));
     }
 
     // sleep a bit to give the device time to respond
     usleep(micros);
 
     // read Wireless FT response
-    bzero(buffer, 2048);
-    n = recv(telnetSocket, buffer, 2047, MSG_WAITALL);
+    bzero((char *)&buffer, 2048);
+    n = recv(mTelnetSocket, buffer, 2047, 0);
     if (n < 0) {
       errorPrint("Error reading from telnet socket");
       response = "";
       return false;
     } else {
-      verbosePrint(mVerbose, std::format("telnet socket read: got {} bytes.", n));
+      verbosePrint(mVerbose, string_format("telnet socket read: got %d bytes.", n));
       response = std::string(buffer);
     }
 
-    verbosePrint(mVerbose, std::format("telnet response: '{}'", response.c_str()));
+    verbosePrint(mVerbose, string_format("telnet response: '%s'", response.c_str()));
   } catch (...) {
     response = "";
     return false;
@@ -162,7 +183,7 @@ bool WirelessFT::telnetCommand(std::string & response, std::string command, unsi
 bool WirelessFT::setRate(unsigned int rate, unsigned int oversample)
 {
   std::string response;
-  std::string command = std::format("rate {} {}\r\n", rate, oversample);
+  std::string command = string_format("rate %d %d\r\n", rate, oversample);
 
   if (rate * oversample > WFT_MAX_RATE) {
     errorPrint("Cannot request ADC rate over WFT_MAX_RATE");
@@ -172,16 +193,16 @@ bool WirelessFT::setRate(unsigned int rate, unsigned int oversample)
   return telnetCommand(response, command);
 }
 
-bool WirelessFT::setBias(bool bias, unsigned int transducer = 0)
+bool WirelessFT::setBias(bool bias, unsigned int transducer)
 {
   std::string command, response;
 
   if (transducer > NUMBER_OF_TRANSDUCERS) {
-    errorPrint("Out of bounds transducer for bias.")
+    errorPrint("Out of bounds transducer for bias.");
   } else if (transducer == 0) {
-    command = std::format("bias * {}\r\n", rate, bias ? "ON" : "OFF");
+    command = string_format("bias * %s\r\n", bias ? "ON" : "OFF");
   } else {
-    command = std::format("bias {} {}\r\n", transducer, bias ? "ON" : "OFF");
+    command = string_format("bias %d %s\r\n", transducer, bias ? "ON" : "OFF");
   }
 
   return telnetCommand(response, command);
@@ -220,7 +241,7 @@ bool WirelessFT::udpConfigure(std::string hostname, int port)
   // Connect to Socket
   if (connect(mUDPSocket, (sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
     errorPrint(
-      std::format("error connecting to socket at host '{}' port '{}'", hostname.c_str(), port));
+      string_format("error connecting to socket at host '%s' port '%d'", hostname.c_str(), port));
     close(mUDPSocket);
     mUDPSocket = -1;
     return false;
@@ -240,7 +261,7 @@ bool WirelessFT::udpClose()
   std::lock_guard<std::mutex> guard(mUDPMutex);
 
   try {
-    if (mUDPMutex >= 0) {
+    if (mUDPSocket >= 0) {
       ::shutdown(mUDPSocket, SHUT_RDWR);
       close(mUDPSocket);
       mUDPSocket = -1;
@@ -277,8 +298,8 @@ bool WirelessFT::udpStartStreaming()
   buffer[9] = (unsigned char)(crc & 0x00ff);
 
   unsigned int length = 10;
-  int n = send(udpSocket, buffer, length, MSG_NOSIGNAL);
-  verbosePrint(mVerbose, std::format("udpStartStreaming: wrote {} bytes", n));
+  size_t n = send(mUDPSocket, &buffer, length, MSG_NOSIGNAL);
+  verbosePrint(mVerbose, string_format("udpStartStreaming: wrote %d bytes", n));
   mIsStreaming = (n == length) || mIsStreaming;
 
   return (n == length);
@@ -304,8 +325,8 @@ bool WirelessFT::udpStopStreaming()
   buffer[5] = (unsigned char)(crc & 0x00ff);
 
   unsigned int length = 6;
-  int n = send(udpSocket, buffer, length, MSG_NOSIGNAL);
-  verbosePrint(mVerbose, std::format("udpStopStreaming: wrote {} bytes", n));
+  size_t n = send(mUDPSocket, &buffer, length, MSG_NOSIGNAL);
+  verbosePrint(mVerbose, string_format("udpStopStreaming: wrote %d bytes", n));
   mIsStreaming = false;
 
   return (n == length);
@@ -355,22 +376,25 @@ unsigned short WirelessFT::crcBuf(char * buff, int len)
 }
 
 #define NTP_TO_UNIX 2208988800L
-static std::chrono::time_point<std::chrono::system_clock> toSystemTimestamp(unsigned long timestamp)
+static std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<double>>
+toSystemTimestamp(unsigned long timestamp)
 {
   // Convert device time to duration
   double secs = (double)(timestamp >> 12);
   for (int i = 0; i < 12; i++) {
-    secs += ((timestamp & 0xFFF) >> (11 - i)) * pow(0.5, i + 1)
+    secs += (((timestamp & 0xFFF) >> (11 - i)) & 0x1) * pow(0.5, i + 1);
   }
   std::chrono::duration<double> deviceTime(secs);
+  verbosePrint(true, string_format("Device Time: %f", deviceTime.count()));
 
   // Get Last 2^20 rollover point in Unix Time
   std::uint64_t seconds_since_epoch = std::chrono::duration_cast<std::chrono::seconds>(
                                         std::chrono::system_clock::now().time_since_epoch())
                                         .count();
-  auto deviceBase =
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<double>> deviceBase =
     std::chrono::system_clock::now() -
     std::chrono::seconds((seconds_since_epoch % (1 << 20)) + (NTP_TO_UNIX % (1 << 20)));
+  verbosePrint(true, string_format("Device Base: %f", deviceBase.time_since_epoch().count()));
 
   return deviceBase + deviceTime;
 }
@@ -382,16 +406,16 @@ WirelessFTDataPacket WirelessFT::readDataPacket()
 
   // Read packet from socket
   UDPPacket buffer;
-  bzero(buffer, sizeof(UDPPacket));
+  bzero((char *)&buffer, sizeof(UDPPacket));
 
-  int n = recv(udpSocket, buffer, sizeof(UDPPacket), MSG_WAITALL);
+  int n = recv(mUDPSocket, &buffer, sizeof(UDPPacket), MSG_WAITALL);
   if (n < 0) {
     errorPrint("Cannot read UDP Data Packet");
     return ret;
   }
 
   // Convert timestamp to system time
-  ret.timestamp = toSystemTimestamp(buffer.timestamp);
+  ret.timestamp = toSystemTimestamp(__builtin_bswap32(buffer.timestamp));
 
   // See what transducers are available
   std::vector<int> transducers;
@@ -402,10 +426,11 @@ WirelessFTDataPacket WirelessFT::readDataPacket()
   }
 
   // Copy data over
-  for (int i = 0; i < transducers.size(); i++) {
-    memcpy(
-      &(ret.counts[transducers[i]][0]), &(buffer.sg[i][0]),
-      sizeof(signed long) * NUMBER_OF_STRAIN_GAGES);
+  for (size_t i = 0; i < transducers.size(); i++) {
+    for (size_t j = 0; j < NUMBER_OF_STRAIN_GAGES; j++) {
+      ret.counts[transducers[i]][j] =
+        (signed long)__builtin_bswap32((unsigned long)buffer.sg[i][j]);
+    }
   }
 
   ret.valid = true;
