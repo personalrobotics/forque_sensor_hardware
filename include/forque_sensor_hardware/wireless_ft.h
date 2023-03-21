@@ -103,20 +103,20 @@ namespace forque_sensor_hardware
 #define NUMBER_OF_CALIBRATIONS 3
 struct UDPPacket
 {
-  unsigned long timestamp;
-  unsigned long sequence;
-  unsigned long statusCode[NUMBER_OF_ANALOG_BOARDS];
-  unsigned char batteryLevel;
-  unsigned char transMask;
-  signed long sg[NUMBER_OF_TRANSDUCERS][NUMBER_OF_STRAIN_GAGES];
+  std::uint32_t timestamp;
+  std::uint32_t sequence;
+  std::uint32_t statusCode[NUMBER_OF_ANALOG_BOARDS];
+  std::uint8_t batteryLevel;
+  std::uint8_t transMask;
+  std::int32_t sg[NUMBER_OF_TRANSDUCERS][NUMBER_OF_STRAIN_GAGES];
 } __attribute__((__packed__));
 
 typedef struct WirelessFTDataPacket
 {
   bool valid = false;
-  std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<double>> timestamp;
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::microseconds> timestamp;
   bool transducer_present[NUMBER_OF_TRANSDUCERS];
-  signed long counts[NUMBER_OF_TRANSDUCERS][NUMBER_OF_STRAIN_GAGES];
+  std::int32_t counts[NUMBER_OF_TRANSDUCERS][NUMBER_OF_STRAIN_GAGES];
 } WirelessFTDataPacket;
 
 class WirelessFT

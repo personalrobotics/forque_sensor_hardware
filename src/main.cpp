@@ -18,19 +18,18 @@ public:
     mWFT = wft;
     mWFT->udpStartStreaming();
     // Timer for Polling
-    timer_ = this->create_wall_timer(10ms, std::bind(&WirelessFTNode::timer_callback, this));
+    timer_ = this->create_wall_timer(1ms, std::bind(&WirelessFTNode::timer_callback, this));
   }
 
 private:
   void timer_callback()
   {
     auto packet = mWFT->readDataPacket();
-    auto latency =
-      std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()) -
-      packet.timestamp.time_since_epoch();
-    RCLCPP_INFO(this->get_logger(), "System Time: %f", std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count());
-    RCLCPP_INFO(this->get_logger(), "Device Time: %f", packet.timestamp.time_since_epoch().count());
-    RCLCPP_INFO(this->get_logger(), "Valid? '%d'; Latency: '%f'", packet.valid, latency.count());
+    auto nowusecs =
+      std::chrono::time_point_cast<std::chrono::microseconds>(std::chrono::system_clock::now());
+    auto latency = nowusecs - packet.timestamp;
+    RCLCPP_INFO(this->get_logger(), "Valid? '%d'; Latency: '%ld'", packet.valid, latency.count());
+    RCLCPP_INFO(this->get_logger(), "Z Force: '%f' N", (double)(packet.counts[0][2]) / 1000000.0);
   }
 
   rclcpp::TimerBase::SharedPtr timer_;

@@ -376,27 +376,25 @@ unsigned short WirelessFT::crcBuf(char * buff, int len)
 }
 
 #define NTP_TO_UNIX 2208988800L
-static std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<double>>
+static std::chrono::time_point<std::chrono::system_clock, std::chrono::microseconds>
 toSystemTimestamp(unsigned long timestamp)
 {
   // Convert device time to duration
-  double secs = (double)(timestamp >> 12);
-  for (int i = 0; i < 12; i++) {
-    secs += (((timestamp & 0xFFF) >> (11 - i)) & 0x1) * pow(0.5, i + 1);
-  }
-  std::chrono::duration<double> deviceTime(secs);
-  verbosePrint(true, string_format("Device Time: %f", deviceTime.count()));
+  std::uint64_t usecs = (timestamp >> 12) * 1000000L;
+  usecs += ((timestamp & 0xFFF) * 1000000L) >> 12;
+  std::chrono::microseconds deviceTime(usecs);
 
   // Get Last 2^20 rollover point in Unix Time
-  std::uint64_t seconds_since_epoch = std::chrono::duration_cast<std::chrono::seconds>(
-                                        std::chrono::system_clock::now().time_since_epoch())
-                                        .count();
-  std::chrono::time_point<std::chrono::system_clock, std::chrono::duration<double>> deviceBase =
-    std::chrono::system_clock::now() -
-    std::chrono::seconds((seconds_since_epoch % (1 << 20)) + (NTP_TO_UNIX % (1 << 20)));
-  verbosePrint(true, string_format("Device Base: %f", deviceBase.time_since_epoch().count()));
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::microseconds> deviceBase =
+    std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
+  uint64_t modsecs =
+    (std::chrono::duration_cast<std::chrono::seconds>(deviceBase.time_since_epoch()).count() +
+     NTP_TO_UNIX) %
+    (1 << 20);
+  std::chrono::microseconds modDuration(modsecs * 1000000L);
 
-  return deviceBase + deviceTime;
+  // Return rollover + device time
+  return deviceBase - modDuration + deviceTime;
 }
 
 WirelessFTDataPacket WirelessFT::readDataPacket()
@@ -408,14 +406,14 @@ WirelessFTDataPacket WirelessFT::readDataPacket()
   UDPPacket buffer;
   bzero((char *)&buffer, sizeof(UDPPacket));
 
-  int n = recv(mUDPSocket, &buffer, sizeof(UDPPacket), MSG_WAITALL);
+  int n = read(mUDPSocket, &buffer, sizeof(UDPPacket));
   if (n < 0) {
     errorPrint("Cannot read UDP Data Packet");
     return ret;
   }
 
   // Convert timestamp to system time
-  ret.timestamp = toSystemTimestamp(__builtin_bswap32(buffer.timestamp));
+  ret.timestamp = toSystemTimestamp(ntohl(buffer.timestamp));
 
   // See what transducers are available
   std::vector<int> transducers;
@@ -428,8 +426,7 @@ WirelessFTDataPacket WirelessFT::readDataPacket()
   // Copy data over
   for (size_t i = 0; i < transducers.size(); i++) {
     for (size_t j = 0; j < NUMBER_OF_STRAIN_GAGES; j++) {
-      ret.counts[transducers[i]][j] =
-        (signed long)__builtin_bswap32((unsigned long)buffer.sg[i][j]);
+      ret.counts[transducers[i]][j] = (signed long)ntohl(buffer.sg[i][j]);
     }
   }
 
