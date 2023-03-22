@@ -10,6 +10,7 @@
 // ROS
 #include "geometry_msgs/msg/wrench_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "std_srvs/srv/set_bool.hpp"
 
 using namespace std::chrono_literals;
 using namespace forque_sensor_hardware;
@@ -144,6 +145,12 @@ public:
     // Timer for Polling / Publishing
     mTimer = this->create_wall_timer(1ms, std::bind(&WirelessFTNode::timer_callback, this));
 
+    // Service for Bias
+    mService = create_service<std_srvs::srv::SetBool>(
+      "~/set_bias",
+      std::bind(
+        &WirelessFTNode::bias_callback, this, std::placeholders::_1, std::placeholders::_2));
+
     RCLCPP_INFO(get_logger(), "Initialization Successful");
     return true;
   }
@@ -230,6 +237,19 @@ private:
     }
   }
 
+  void bias_callback(
+    const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+    std::shared_ptr<std_srvs::srv::SetBool::Response> response)
+  {
+    response->success = true;
+    response->message = "re-taring success";
+
+    if (!mWFT->setBias(request->data)) {
+      response->success = false;
+      response->message = "error in setBias";
+    }
+  }
+
   // Parameters
   int mRate;
   int mOversample;
@@ -238,6 +258,7 @@ private:
   OnSetParametersCallbackHandle::SharedPtr mCallbackHandle;
   std::vector<rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr> mPublishers;
   rclcpp::TimerBase::SharedPtr mTimer;
+  rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr mService;
 
   // WFT
   std::shared_ptr<WirelessFT> mWFT;
