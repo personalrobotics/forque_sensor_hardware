@@ -20,7 +20,7 @@ using namespace forque_sensor_hardware;
 class WirelessFTNode {
 public:
   WirelessFTNode(std::shared_ptr<WirelessFT> wft)
-      : nh_("~"), as_(nh_, "~/bias_controller/trigger",
+      : nh_("~"), as_(nh_, "bias_controller/trigger",
                       std::bind(&WirelessFTNode::bias_callback, this,
                                 std::placeholders::_1),
                       false) {
@@ -30,11 +30,11 @@ public:
 
   bool init() {
     // Get Parameters
-    std::string host = nh_.param<std::string>("~host", "ft-sensor");
+    std::string host = nh_.param<std::string>("host", "ft-sensor");
 
-    int tcpport = nh_.param<int>("~tcpport", 23);
+    int tcpport = nh_.param<int>("tcpport", 23);
 
-    int udpport = nh_.param<int>("~udpport", 49152);
+    int udpport = nh_.param<int>("udpport", 49152);
 
     // Start up WFT
     if (!mWFT->telnetConnect(host, tcpport)) {
@@ -51,8 +51,8 @@ public:
     mWFT->setBias(true);
 
     // Set Initial Rate
-    int rate = nh_.param<int>("~rate", 100);
-    int oversample = nh_.param<int>("~oversample", 16);
+    int rate = nh_.param<int>("rate", 100);
+    int oversample = nh_.param<int>("oversample", 16);
 
     if (!mWFT->setRate(rate, oversample)) {
       ROS_WARN("Provided rate/oversample failed, reverting to default.");
@@ -66,7 +66,7 @@ public:
 
     // Set up publisher (first transducer only)
     mPublisher =
-        nh_.advertise<geometry_msgs::WrenchStamped>("~forqueSensor", 1);
+        nh_.advertise<geometry_msgs::WrenchStamped>("forqueSensor", 1);
 
     // Start WFT UDP Streaming
     mWFT->udpStartStreaming();
@@ -74,6 +74,9 @@ public:
     // Timer for Polling / Publishing
     mTimer = nh_.createTimer(ros::Duration(0.001),
                              std::bind(&WirelessFTNode::timer_callback, this));
+
+    // Start bias action server
+    as_.start();
 
     ROS_INFO("Initialization Successful");
     return true;
@@ -100,9 +103,9 @@ private:
             .count();
 
     // Get Parameters
-    std::string frame = nh_.param<std::string>("~frame", "forque_frame");
-    double ncounts = (double)(nh_.param<int>("~countsPerN", 1000000));
-    double nmcounts = (double)(nh_.param<int>("~countsPerNm", 1000000));
+    std::string frame = nh_.param<std::string>("frame", "forque_frame");
+    double ncounts = (double)(nh_.param<int>("countsPerN", 1000000));
+    double nmcounts = (double)(nh_.param<int>("countsPerNm", 1000000));
 
     int i = 0;
     if (!packet.transducer_present[i])
