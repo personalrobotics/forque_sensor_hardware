@@ -1,41 +1,73 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 2.8.3)
 project(forque_sensor_hardware)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+
+find_package(catkin REQUIRED COMPONENTS
+    roscpp std_msgs geometry_msgs actionlib
+)
+
+catkin_package(
+      INCLUDE_DIRS
+        include
+      CATKIN_DEPENDS
+        roscpp
+        std_msgs
+        geometry_msgs
+        actionlib
+
+)
+include_directories(${catkin_INCLUDE_DIRS})
+
+find_package(pr_control_msgs REQUIRED)
+include_directories(${pr_control_msgs_INCLUDE_DIRS})
+
+set(SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(SRC_FILES   ${SRC_DIR}/main.cpp
+                ${SRC_DIR}/wireless_ft.cpp
+)
+file(GLOB_RECURSE ALL_SOURCE_FILES
+  LIST_DIRECTORIES false
+  src/*.cpp
+)
+
+add_executable(forque_sensor_hardware
+  src/main.cpp ${ALL_SOURCE_FILES})
+
+target_link_libraries(forque_sensor_hardware
+  ${pr_control_msgs_LIBRARIES}
+  ${catkin_LIBRARIES}
+  )
+
+
+include_directories(
+$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+$<INSTALL_INTERFACE:include>
+)
+
+
+install(TARGETS forque_sensor_hardware RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
+
+
+# ===============================================================================
+# Formatting
+#
+
+include(ClangFormat)
+clang_format_setup(VERSION 6.0)
+
+if(CLANG_FORMAT_EXECUTABLE)
+
+  file(GLOB_RECURSE ALL_SOURCE_FILES
+    LIST_DIRECTORIES false
+    include/*.h
+    include/*.hpp
+    src/*.c
+    src/*.cpp)
+
+  clang_format_add_sources(${ALL_SOURCE_FILES})
+
+  clang_format_add_targets()
 endif()
-set(CMAKE_CXX_STANDARD 17)
-
-# find dependencies
-find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
-find_package(geometry_msgs REQUIRED)
-find_package(std_srvs REQUIRED)
-
-## Building
-include_directories(include)
-add_executable(forque_sensor_hardware src/main.cpp src/wireless_ft.cpp)
-ament_target_dependencies(forque_sensor_hardware rclcpp std_msgs geometry_msgs std_srvs)
-
-install(TARGETS
-  forque_sensor_hardware
-  DESTINATION lib/${PROJECT_NAME})
-
-## Testing
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # comment the line when a copyright and license is added to all source files
-  # set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # comment the line when this package is in a git repo and when
-  # a copyright and license is added to all source files
-  # set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-endif()
-
-ament_package()

@@ -1,10 +1,10 @@
 /* wireless_ft.h - Class for communicating with ATI Wireless F/T
  *
  * Based on https://github.com/TAMS-Group/tams_wireless_ft
- * 
+ *
  * This file and its implementation are independent of ROS2.
  * It provides basic configuration (transducer and calibration
- * selection), 
+ * selection),
  *
  * (C) 2023, ekgordon@cs.uw.edu
  */
@@ -94,8 +94,7 @@
 #define WFT_MAX_RATE 4000
 #define WFT_MIN_RATE 5
 
-namespace forque_sensor_hardware
-{
+namespace forque_sensor_hardware {
 
 // UDP data packet definition
 //
@@ -103,8 +102,7 @@ namespace forque_sensor_hardware
 #define NUMBER_OF_TRANSDUCERS 6
 #define NUMBER_OF_STRAIN_GAGES 6
 #define NUMBER_OF_CALIBRATIONS 3
-struct UDPPacket
-{
+struct UDPPacket {
   std::uint32_t timestamp;
   std::uint32_t sequence;
   std::uint32_t statusCode[NUMBER_OF_ANALOG_BOARDS];
@@ -113,16 +111,15 @@ struct UDPPacket
   std::int32_t sg[NUMBER_OF_TRANSDUCERS][NUMBER_OF_STRAIN_GAGES];
 } __attribute__((__packed__));
 
-typedef struct WirelessFTDataPacket
-{
+typedef struct WirelessFTDataPacket {
   bool valid = false;
-  std::chrono::time_point<std::chrono::system_clock, std::chrono::microseconds> timestamp;
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::microseconds>
+      timestamp;
   bool transducer_present[NUMBER_OF_TRANSDUCERS];
   std::int32_t counts[NUMBER_OF_TRANSDUCERS][NUMBER_OF_STRAIN_GAGES];
 } WirelessFTDataPacket;
 
-class WirelessFT
-{
+class WirelessFT {
 public:
   WirelessFT(bool verbose = false);
 
@@ -143,7 +140,8 @@ public:
   bool setBias(bool bias = true, unsigned int transducer = 0);
 
   // Mostly for internal use
-  bool telnetCommand(std::string & response, std::string command, unsigned int micros = 500000);
+  bool telnetCommand(std::string &response, std::string command,
+                     unsigned int micros = 500000);
 
   bool udpConfigure(std::string hostname, int port = DEFAULT_UDP_PORT);
   bool udpClose();
@@ -155,7 +153,7 @@ public:
 
 private:
   unsigned char mUDPCommandSequence;
-  unsigned short crcBuf(char * buff, int len);
+  unsigned short crcBuf(char *buff, int len);
   unsigned short crcByte(unsigned short crc, char ch);
 
   bool mIsStreaming;
@@ -169,22 +167,23 @@ private:
   std::mutex mTCPMutex;
   std::mutex mUDPMutex;
 
-};  // end class WirelessFT
+}; // end class WirelessFT
 
 // String Formatting Utility
 template <typename... Args>
-std::string string_format(const std::string & format, Args... args)
-{
-  int size_s = std::snprintf(nullptr, 0, format.c_str(), args...) + 1;  // Extra space for '\0'
+std::string string_format(const std::string &format, Args... args) {
+  int size_s = std::snprintf(nullptr, 0, format.c_str(), args...) +
+               1; // Extra space for '\0'
   if (size_s <= 0) {
     throw std::runtime_error("Error during formatting.");
   }
   auto size = static_cast<size_t>(size_s);
   std::unique_ptr<char[]> buf(new char[size]);
   std::snprintf(buf.get(), size, format.c_str(), args...);
-  return std::string(buf.get(), buf.get() + size - 1);  // We don't want the '\0' inside
+  return std::string(buf.get(),
+                     buf.get() + size - 1); // We don't want the '\0' inside
 }
 
-};  // end namespace forque_sensor_hardware
+}; // end namespace forque_sensor_hardware
 
 #endif

@@ -1,23 +1,20 @@
 <?xml version="1.0"?>
-<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
-<package format="3">
+<package format="2">
   <name>forque_sensor_hardware</name>
   <version>0.0.1</version>
-  <description>ROS2 Driver for the ATI Wireless F/T Sensor</description>
+  <description>Wireless ATI ROS1 Package</description>
+
   <maintainer email="ekgordon@cs.uw.edu">Ethan K. Gordon</maintainer>
-  <license>BSD-3-Clause</license>
+  <license>BSD-3</license>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>catkin</buildtool_depend>
 
-  <depend>std_msgs</depend>
+  <depend>roscpp</depend>
   <depend>geometry_msgs</depend>
-  <depend>std_srvs</depend>
-  <depend>rclcpp</depend>
-
-  <test_depend>ament_lint_auto</test_depend>
-  <test_depend>ament_lint_common</test_depend>
+  <depend>std_msgs</depend>
+  <depend>pr_control_msgs</depend>
+  <depend>actionlib</depend>
 
   <export>
-    <build_type>ament_cmake</build_type>
   </export>
 </package>

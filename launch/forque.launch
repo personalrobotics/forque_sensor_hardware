@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+   <arg name="host" default="ft-sensor"/>
+   
+   <node pkg="forque_sensor_hardware" 
+          name="forque" 
+          type="forque_sensor_hardware" 
+          output="screen"
+          required="true">
+      <param name="host" value="$(arg host)" />
+   </node>
+
+
+</launch>
