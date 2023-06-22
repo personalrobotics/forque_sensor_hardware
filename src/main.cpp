@@ -163,7 +163,7 @@ public:
     mOversample = oversample;
 
     // Set up publishers
-    for (int i; i < NUMBER_OF_TRANSDUCERS; i++) {
+    for (int i = 0; i < NUMBER_OF_TRANSDUCERS; i++) {
       mPublishers.push_back(create_publisher<geometry_msgs::msg::WrenchStamped>(
         string_format("~/ftSensor%d", i + 1), rclcpp::QoS(1).best_effort().durability_volatile()));
     }
