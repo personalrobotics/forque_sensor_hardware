@@ -39,6 +39,7 @@
 // ROS
 #include "geometry_msgs/msg/wrench_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "rmw/qos_profiles.h"
 #include "std_srvs/srv/set_bool.hpp"
 
 using namespace std::chrono_literals;
@@ -50,6 +51,11 @@ class WirelessFTNode : public rclcpp::Node
 public:
   WirelessFTNode(std::shared_ptr<WirelessFT> wft) : Node("wireless_ft")
   {
+    // Set the default callback group to the ReentrantCallbackGroup
+    // This allows the setBias service to be called while the node is
+    // publishing readings
+    mCallbackGroup = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+
     mWFT = wft;
     auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
     param_desc.integer_range.push_back(rcl_interfaces::msg::IntegerRange());
@@ -172,13 +178,15 @@ public:
     mWFT->udpStartStreaming();
 
     // Timer for Polling / Publishing
-    mTimer = this->create_wall_timer(1ms, std::bind(&WirelessFTNode::timer_callback, this));
+    mTimer = this->create_wall_timer(1ms, std::bind(&WirelessFTNode::timer_callback, this), mCallbackGroup);
 
     // Service for Bias
     mService = create_service<std_srvs::srv::SetBool>(
       "~/set_bias",
       std::bind(
-        &WirelessFTNode::bias_callback, this, std::placeholders::_1, std::placeholders::_2));
+        &WirelessFTNode::bias_callback, this, std::placeholders::_1, std::placeholders::_2),
+      rmw_qos_profile_services_default,
+      mCallbackGroup);
 
     RCLCPP_INFO(get_logger(), "Initialization Successful");
     return true;
@@ -284,6 +292,7 @@ private:
   int mOversample;
 
   // ROS Objects
+  rclcpp::CallbackGroup::SharedPtr mCallbackGroup;
   OnSetParametersCallbackHandle::SharedPtr mCallbackHandle;
   std::vector<rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr> mPublishers;
   rclcpp::TimerBase::SharedPtr mTimer;
@@ -305,7 +314,12 @@ int main(int argc, char * argv[])
     return -1;
   }
 
-  rclcpp::spin(node);
+  // Use the MultiThreadedExecutor to enable the node to continue
+  // publishing F/T readings during the setBias service call
+  rclcpp::executors::MultiThreadedExecutor executor;
+  executor.add_node(node);
+  executor.spin();
+
   rclcpp::shutdown();
 
   // Cleanup Wireless F/T
