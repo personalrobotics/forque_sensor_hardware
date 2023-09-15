@@ -51,10 +51,16 @@ class WirelessFTNode : public rclcpp::Node
 public:
   WirelessFTNode(std::shared_ptr<WirelessFT> wft) : Node("wireless_ft")
   {
-    // Set the default callback group to the ReentrantCallbackGroup
-    // This allows the setBias service to be called while the node is
-    // publishing readings
-    mCallbackGroup = this->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    /** Both the timer and service are in separate mutually exclusive
+     * callback groups so that the service can be called while the
+     * timer is still publishing.
+     */
+    mTimerCallbackGroup = this->create_callback_group(
+      rclcpp::CallbackGroupType::MutuallyExclusive
+    );
+    mServiceCallbackGroup = this->create_callback_group(
+      rclcpp::CallbackGroupType::MutuallyExclusive
+    );
 
     mWFT = wft;
     auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
@@ -178,7 +184,7 @@ public:
     mWFT->udpStartStreaming();
 
     // Timer for Polling / Publishing
-    mTimer = this->create_wall_timer(1ms, std::bind(&WirelessFTNode::timer_callback, this), mCallbackGroup);
+    mTimer = this->create_wall_timer(1ms, std::bind(&WirelessFTNode::timer_callback, this), mTimerCallbackGroup);
 
     // Service for Bias
     mService = create_service<std_srvs::srv::SetBool>(
@@ -186,7 +192,7 @@ public:
       std::bind(
         &WirelessFTNode::bias_callback, this, std::placeholders::_1, std::placeholders::_2),
       rmw_qos_profile_services_default,
-      mCallbackGroup);
+      mServiceCallbackGroup);
 
     RCLCPP_INFO(get_logger(), "Initialization Successful");
     return true;
@@ -278,6 +284,8 @@ private:
     const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
     std::shared_ptr<std_srvs::srv::SetBool::Response> response)
   {
+    RCLCPP_INFO(get_logger(), "Started setting bias...");
+
     response->success = true;
     response->message = "re-taring success";
 
@@ -285,6 +293,7 @@ private:
       response->success = false;
       response->message = "error in setBias";
     }
+    RCLCPP_INFO(get_logger(), "...finished setting bias!");
   }
 
   // Parameters
@@ -292,11 +301,12 @@ private:
   int mOversample;
 
   // ROS Objects
-  rclcpp::CallbackGroup::SharedPtr mCallbackGroup;
   OnSetParametersCallbackHandle::SharedPtr mCallbackHandle;
   std::vector<rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr> mPublishers;
   rclcpp::TimerBase::SharedPtr mTimer;
+  rclcpp::CallbackGroup::SharedPtr mTimerCallbackGroup;
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr mService;
+  rclcpp::CallbackGroup::SharedPtr mServiceCallbackGroup;
 
   // WFT
   std::shared_ptr<WirelessFT> mWFT;
@@ -314,9 +324,14 @@ int main(int argc, char * argv[])
     return -1;
   }
 
-  // Use the MultiThreadedExecutor to enable the node to continue
-  // publishing F/T readings during the setBias service call
-  rclcpp::executors::MultiThreadedExecutor executor;
+  /** Use the MultiThreadedExecutor to enable the node to continue
+   * publishing F/T readings during the setBias service call.
+   * Use 2 threads for the 2 different callbacks (timer to publish,
+   * service to setBias)
+   */
+  rclcpp::executors::MultiThreadedExecutor executor(
+    rclcpp::ExecutorOptions(), 2
+  );
   executor.add_node(node);
   executor.spin();
 
