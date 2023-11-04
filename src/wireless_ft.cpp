@@ -28,11 +28,13 @@
 // Author: Ethan K. Gordon
 // Based on https://github.com/TAMS-Group/tams_wireless_ft
 
+#include <errno.h>
 #include <forque_sensor_hardware/wireless_ft.h>
 #include <netdb.h>  // gethostbyname
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -165,7 +167,7 @@ bool WirelessFT::telnetCommand(std::string & response, std::string command, unsi
     strncpy(buffer, command.c_str(), 2047);
     n = send(mTelnetSocket, buffer, strlen(buffer), MSG_NOSIGNAL);
     if (n < 0) {
-      errorPrint("Error writing to telnet socket.");
+      errorPrint(string_format("Error writing to telnet socket: %s", strerror(errno)));
       response = "";
       return false;
     } else {
@@ -179,7 +181,7 @@ bool WirelessFT::telnetCommand(std::string & response, std::string command, unsi
     bzero((char *)&buffer, 2048);
     n = recv(mTelnetSocket, buffer, 2047, 0);
     if (n < 0) {
-      errorPrint("Error reading from telnet socket");
+      errorPrint(string_format("Error reading from telnet socket: %s", strerror(errno)));
       response = "";
       return false;
     } else {
