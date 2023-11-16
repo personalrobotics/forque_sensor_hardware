@@ -29,6 +29,7 @@
 
 #include <bits/stdc++.h>
 
+#include <atomic>
 #include <chrono>
 #include <functional>
 #include <memory>
@@ -46,24 +47,30 @@ using namespace std::chrono_literals;
 using namespace forque_sensor_hardware;
 
 /* Wireless F/T Node */
-class WirelessFTNode : public rclcpp::Node
-{
+class WirelessFTNode : public rclcpp::Node {
 public:
-  WirelessFTNode(std::shared_ptr<WirelessFT> wft) : Node("wireless_ft")
-  {
+  WirelessFTNode(std::shared_ptr<WirelessFT> wft) : Node("wireless_ft") {
     /** Both the timer and service are in separate mutually exclusive
      * callback groups so that the service can be called while the
      * timer is still publishing.
      */
     mTimerCallbackGroup = this->create_callback_group(
-      rclcpp::CallbackGroupType::MutuallyExclusive
-    );
+        rclcpp::CallbackGroupType::MutuallyExclusive);
+    mKeepAliveCallbackGroup = this->create_callback_group(
+        rclcpp::CallbackGroupType::MutuallyExclusive);
     mServiceCallbackGroup = this->create_callback_group(
-      rclcpp::CallbackGroupType::MutuallyExclusive
-    );
+        rclcpp::CallbackGroupType::MutuallyExclusive);
 
     mWFT = wft;
     auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+
+    // KeepAlive Time Parameter
+    param_desc.name = "keepalive_s";
+    param_desc.type = rclcpp::ParameterType::PARAMETER_DOUBLE;
+    param_desc.description = "Rate to check alive F/T sensing, Default 0.5s";
+    param_desc.read_only = true;
+    declare_parameter("keepalive_s", 0.5, param_desc);
+
     param_desc.integer_range.push_back(rcl_interfaces::msg::IntegerRange());
 
     // Rate Parameter
@@ -80,7 +87,8 @@ public:
     // Oversample Parameter
     param_desc.name = "oversample";
     param_desc.type = rclcpp::ParameterType::PARAMETER_INTEGER;
-    param_desc.description = "F/T Samples per packet, rate*oversample <= 4000, Default 16";
+    param_desc.description =
+        "F/T Samples per packet, rate*oversample <= 4000, Default 16";
     param_desc.read_only = false;
     param_desc.integer_range[0].from_value = 1;
     param_desc.integer_range[0].to_value = WFT_MAX_RATE;
@@ -95,7 +103,7 @@ public:
     param_desc.read_only = false;
     param_desc.integer_range[0].from_value = 1;
     param_desc.integer_range[0].to_value = INT_MAX;
-    param_desc.integer_range[0].step = 0;  // continuous
+    param_desc.integer_range[0].step = 0; // continuous
     declare_parameter("countsPerN", 1000000, param_desc);
 
     param_desc.name = "countsPerNm";
@@ -104,13 +112,14 @@ public:
     param_desc.read_only = false;
     param_desc.integer_range[0].from_value = 1;
     param_desc.integer_range[0].to_value = INT_MAX;
-    param_desc.integer_range[0].step = 0;  // continuous
+    param_desc.integer_range[0].step = 0; // continuous
     declare_parameter("countsPerNm", 1000000, param_desc);
 
     // Force/Torque Frame Parameter
     param_desc.name = "frame";
     param_desc.type = rclcpp::ParameterType::PARAMETER_STRING;
-    param_desc.description = "TF Frame ID for WrenchStampled, Default 'forque_frame'";
+    param_desc.description =
+        "TF Frame ID for WrenchStampled, Default 'forque_frame'";
     param_desc.read_only = false;
     declare_parameter("frame", "forque_frame", param_desc);
 
@@ -134,16 +143,17 @@ public:
     param_desc.read_only = true;
     declare_parameter("udpport", DEFAULT_UDP_PORT, param_desc);
 
-    mCallbackHandle = add_on_set_parameters_callback(
-      std::bind(&WirelessFTNode::parametersCallback, this, std::placeholders::_1));
+    mCallbackHandle = add_on_set_parameters_callback(std::bind(
+        &WirelessFTNode::parametersCallback, this, std::placeholders::_1));
   }
 
-  bool init()
-  {
+  bool init() {
     // Get Parameters
     auto host = get_parameter("host").get_parameter_value().get<std::string>();
     auto tcpport = get_parameter("tcpport").get_parameter_value().get<int>();
     auto udpport = get_parameter("udpport").get_parameter_value().get<int>();
+    auto keepalive_s = std::chrono::duration<double>(
+        get_parameter("keepalive_s").get_parameter_value().get<double>());
 
     // Start up WFT
     if (!mWFT->telnetConnect(host, tcpport)) {
@@ -161,9 +171,11 @@ public:
 
     // Set Initial Rate
     auto rate = get_parameter("rate").get_parameter_value().get<int>();
-    auto oversample = get_parameter("oversample").get_parameter_value().get<int>();
+    auto oversample =
+        get_parameter("oversample").get_parameter_value().get<int>();
     if (!mWFT->setRate(rate, oversample)) {
-      RCLCPP_WARN(get_logger(), "Provided rate/oversample failed, reverting to default.");
+      RCLCPP_WARN(get_logger(),
+                  "Provided rate/oversample failed, reverting to default.");
       rate = 100;
       oversample = 16;
       if (!mWFT->setRate(rate, oversample)) {
@@ -177,54 +189,64 @@ public:
     // Set up publishers
     for (int i = 0; i < NUMBER_OF_TRANSDUCERS; i++) {
       mPublishers.push_back(create_publisher<geometry_msgs::msg::WrenchStamped>(
-        string_format("~/ftSensor%d", i + 1), rclcpp::QoS(1).best_effort().durability_volatile()));
+          string_format("~/ftSensor%d", i + 1),
+          rclcpp::QoS(1).best_effort().durability_volatile()));
     }
 
     // Start WFT UDP Streaming
     mWFT->udpStartStreaming();
 
     // Timer for Polling / Publishing
-    mTimer = this->create_wall_timer(1ms, std::bind(&WirelessFTNode::timer_callback, this), mTimerCallbackGroup);
+    // First Init Only
+    if (mFirstInit) {
+      mFirstInit = false;
 
-    // Service for Bias
-    mService = create_service<std_srvs::srv::SetBool>(
-      "~/set_bias",
-      std::bind(
-        &WirelessFTNode::bias_callback, this, std::placeholders::_1, std::placeholders::_2),
-      rmw_qos_profile_services_default,
-      mServiceCallbackGroup);
+      mTimer = this->create_wall_timer(
+          1ms, std::bind(&WirelessFTNode::timer_callback, this),
+          mTimerCallbackGroup);
+      mKeepAlive = this->create_wall_timer(
+          keepalive_s, std::bind(&WirelessFTNode::keep_alive_callback, this),
+          mKeepAliveCallbackGroup);
+
+      // Service for Bias
+      mService = create_service<std_srvs::srv::SetBool>(
+          "~/set_bias",
+          std::bind(&WirelessFTNode::bias_callback, this, std::placeholders::_1,
+                    std::placeholders::_2),
+          rmw_qos_profile_services_default, mServiceCallbackGroup);
+    }
 
     RCLCPP_INFO(get_logger(), "Initialization Successful");
+    mIsAlive = true;
     return true;
   }
 
 private:
   // For setting new rate / oversample
-  rcl_interfaces::msg::SetParametersResult parametersCallback(
-    const std::vector<rclcpp::Parameter> & parameters)
-  {
+  rcl_interfaces::msg::SetParametersResult
+  parametersCallback(const std::vector<rclcpp::Parameter> &parameters) {
     rcl_interfaces::msg::SetParametersResult result;
     result.successful = true;
     result.reason = "success";
     bool changeRate = false;
     int provisionalRate = mRate;
     int provisionalOversample = mOversample;
-    for (const auto & parameter : parameters) {
-      if (
-        parameter.get_name() == "rate" &&
-        parameter.get_type() == rclcpp::ParameterType::PARAMETER_INTEGER) {
+    for (const auto &parameter : parameters) {
+      if (parameter.get_name() == "rate" &&
+          parameter.get_type() == rclcpp::ParameterType::PARAMETER_INTEGER) {
         changeRate = true;
         provisionalRate = parameter.get_parameter_value().get<int>();
-      } else if (
-        parameter.get_name() == "oversample" &&
-        parameter.get_type() == rclcpp::ParameterType::PARAMETER_INTEGER) {
+      } else if (parameter.get_name() == "oversample" &&
+                 parameter.get_type() ==
+                     rclcpp::ParameterType::PARAMETER_INTEGER) {
         changeRate = true;
         provisionalOversample = parameter.get_parameter_value().get<int>();
       }
     }
     if (changeRate) {
       if (mWFT->setRate(provisionalRate, provisionalOversample)) {
-        RCLCPP_INFO(get_logger(), "Rate changed successfully: %d, %d", mRate, mOversample);
+        RCLCPP_INFO(get_logger(), "Rate changed successfully: %d, %d", mRate,
+                    mOversample);
         mRate = provisionalRate;
         mOversample = provisionalOversample;
       } else {
@@ -235,31 +257,51 @@ private:
     return result;
   }
 
-  // For reading from F/T Sensor and publishing wrench
-  void timer_callback()
-  {
-    auto packet = mWFT->readDataPacket();
-    if (!packet.valid) {
-      RCLCPP_WARN(get_logger(), "Skipping Invalid Packet");
+  // Check if alive, and if not, re-init
+  void keep_alive_callback() {
+    if (!mIsAlive) {
+      RCLCPP_WARN(get_logger(), "KeepAlive Failed, re-init");
+      // Disconnect and Re-connect
+      mWFT->udpClose();
+      mWFT->telnetDisconnect();
+
+      this->init();
       return;
     }
+    mIsAlive = false;
+  }
+
+  // For reading from F/T Sensor and publishing wrench
+  void timer_callback() {
+    auto packet = mWFT->readDataPacket();
+    if (!packet.valid) {
+      //RCLCPP_WARN(get_logger(), "Skipping Invalid Packet");
+      return;
+    }
+    mIsAlive = true;
 
     // Convert to ROS Timestamp
-    std::int32_t secs = std::chrono::time_point_cast<std::chrono::seconds>(packet.timestamp)
-                          .time_since_epoch()
-                          .count();
+    std::int32_t secs =
+        std::chrono::time_point_cast<std::chrono::seconds>(packet.timestamp)
+            .time_since_epoch()
+            .count();
     std::uint32_t nsecs =
-      std::chrono::duration_cast<std::chrono::nanoseconds>(
-        packet.timestamp - std::chrono::floor<std::chrono::seconds>(packet.timestamp))
-        .count();
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            packet.timestamp -
+            std::chrono::floor<std::chrono::seconds>(packet.timestamp))
+            .count();
 
     // Get Parameters
-    std::string frame = get_parameter("frame").get_parameter_value().get<std::string>();
-    double ncounts = (double)(get_parameter("countsPerN").get_parameter_value().get<int>());
-    double nmcounts = (double)(get_parameter("countsPerNm").get_parameter_value().get<int>());
+    std::string frame =
+        get_parameter("frame").get_parameter_value().get<std::string>();
+    double ncounts =
+        (double)(get_parameter("countsPerN").get_parameter_value().get<int>());
+    double nmcounts =
+        (double)(get_parameter("countsPerNm").get_parameter_value().get<int>());
 
     for (int i = 0; i < NUMBER_OF_TRANSDUCERS; i++) {
-      if (!packet.transducer_present[i]) continue;
+      if (!packet.transducer_present[i])
+        continue;
       auto msg = geometry_msgs::msg::WrenchStamped();
 
       // Message Header
@@ -280,10 +322,9 @@ private:
     }
   }
 
-  void bias_callback(
-    const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
-    std::shared_ptr<std_srvs::srv::SetBool::Response> response)
-  {
+  void
+  bias_callback(const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+                std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
     RCLCPP_INFO(get_logger(), "Started setting bias...");
 
     response->success = true;
@@ -300,11 +341,16 @@ private:
   int mRate;
   int mOversample;
 
+  // Keep Alive
+  std::atomic<bool> mIsAlive = true;
+  bool mFirstInit = true;
+
   // ROS Objects
   OnSetParametersCallbackHandle::SharedPtr mCallbackHandle;
-  std::vector<rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr> mPublishers;
-  rclcpp::TimerBase::SharedPtr mTimer;
-  rclcpp::CallbackGroup::SharedPtr mTimerCallbackGroup;
+  std::vector<rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr>
+      mPublishers;
+  rclcpp::TimerBase::SharedPtr mTimer, mKeepAlive;
+  rclcpp::CallbackGroup::SharedPtr mTimerCallbackGroup, mKeepAliveCallbackGroup;
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr mService;
   rclcpp::CallbackGroup::SharedPtr mServiceCallbackGroup;
 
@@ -312,8 +358,7 @@ private:
   std::shared_ptr<WirelessFT> mWFT;
 };
 
-int main(int argc, char * argv[])
-{
+int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
 
   // Init Wireless F/T and Node
@@ -329,9 +374,8 @@ int main(int argc, char * argv[])
    * Use 2 threads for the 2 different callbacks (timer to publish,
    * service to setBias)
    */
-  rclcpp::executors::MultiThreadedExecutor executor(
-    rclcpp::ExecutorOptions(), 2
-  );
+  rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(),
+                                                    2);
   executor.add_node(node);
   executor.spin();
 
