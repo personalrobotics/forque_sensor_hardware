@@ -164,8 +164,8 @@ public:
     auto oversample = get_parameter("oversample").get_parameter_value().get<int>();
     if (!mWFT->setRate(rate, oversample)) {
       RCLCPP_WARN(get_logger(), "Provided rate/oversample failed, reverting to default.");
-      rate = 100;
-      oversample = 16;
+      rate = 50;
+      oversample = 2;
       if (!mWFT->setRate(rate, oversample)) {
         RCLCPP_ERROR(get_logger(), "Cannot set rate");
         return false;
