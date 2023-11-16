@@ -259,13 +259,15 @@ private:
 
   // Check if alive, and if not, re-init
   void keep_alive_callback() {
-    if (!mIsAlive) {
+    if (!mIsAlive || mTelnetDead) {
       RCLCPP_WARN(get_logger(), "KeepAlive Failed, re-init");
       // Disconnect and Re-connect
+      mTelnetDead = true;
       mWFT->udpClose();
       mWFT->telnetDisconnect();
 
       this->init();
+      mTelnetDead = false;
       return;
     }
     mIsAlive = false;
@@ -327,12 +329,19 @@ private:
                 std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
     RCLCPP_INFO(get_logger(), "Started setting bias...");
 
+    if (mTelnetDead) {
+      response->success = false;
+      response->message = "reconnecting to telnet";
+      return;
+    }
+
     response->success = true;
     response->message = "re-taring success";
 
     if (!mWFT->setBias(request->data)) {
       response->success = false;
       response->message = "error in setBias";
+      mTelnetDead = true; // Schedule TCP socket reset
     }
     RCLCPP_INFO(get_logger(), "...finished setting bias!");
   }
@@ -343,6 +352,7 @@ private:
 
   // Keep Alive
   std::atomic<bool> mIsAlive = true;
+  std::atomic<bool> mTelnetDead = false;
   bool mFirstInit = true;
 
   // ROS Objects
