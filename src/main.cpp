@@ -81,8 +81,8 @@ public:
     param_desc.integer_range[0].from_value = WFT_MIN_RATE;
     param_desc.integer_range[0].to_value = WFT_MAX_RATE;
     param_desc.integer_range[0].step = 1;
-    declare_parameter("rate", 100, param_desc);
-    mRate = 100;
+    declare_parameter("rate", 50, param_desc);
+    mRate = 50;
 
     // Oversample Parameter
     param_desc.name = "oversample";
@@ -93,8 +93,8 @@ public:
     param_desc.integer_range[0].from_value = 1;
     param_desc.integer_range[0].to_value = WFT_MAX_RATE;
     param_desc.integer_range[0].step = 1;
-    declare_parameter("oversample", 16, param_desc);
-    mOversample = 16;
+    declare_parameter("oversample", 2, param_desc);
+    mOversample = 2;
 
     // Counts Parameters
     param_desc.name = "countsPerN";
@@ -176,8 +176,8 @@ public:
     if (!mWFT->setRate(rate, oversample)) {
       RCLCPP_WARN(get_logger(),
                   "Provided rate/oversample failed, reverting to default.");
-      rate = 100;
-      oversample = 16;
+      rate = 50;
+      oversample = 2;
       if (!mWFT->setRate(rate, oversample)) {
         RCLCPP_ERROR(get_logger(), "Cannot set rate");
         return false;
