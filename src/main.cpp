@@ -275,7 +275,7 @@ private:
   void timer_callback() {
     auto packet = mWFT->readDataPacket();
     if (!packet.valid) {
-      //RCLCPP_WARN(get_logger(), "Skipping Invalid Packet");
+      RCLCPP_DEBUG(get_logger(), "Skipping Invalid Packet");
       return;
     }
     mIsAlive = true;
