@@ -132,12 +132,18 @@ bool WirelessFT::telnetDisconnect()
   std::lock_guard<std::mutex> guard(mTCPMutex);
 
   try {
+    verbosePrint(mVerbose, "telnetDisconnect A");
     if (mTelnetSocket >= 0) {
       ::shutdown(mTelnetSocket, SHUT_RDWR);
+      verbosePrint(mVerbose, "telnetDisconnect B");
       close(mTelnetSocket);
+      verbosePrint(mVerbose, "telnetDisconnect C");
       mTelnetSocket = -1;
+      verbosePrint(mVerbose, "telnetDisconnect D");
     }
+    verbosePrint(mVerbose, "telnetDisconnect E");
   } catch (...) {
+    verbosePrint(mVerbose, "telnetDisconnect F");
     return false;
   }
 
@@ -256,6 +262,17 @@ bool WirelessFT::udpConfigure(std::string hostname, int port)
     return false;
   }
 
+  // Set a timeout on the socket
+  struct timeval tv;
+  tv.tv_sec = 0;
+  tv.tv_usec = 100000;  // 100ms
+  if (setsockopt(mUDPSocket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+    errorPrint("Cannot set socket timeout");
+    close(mUDPSocket);
+    mUDPSocket = -1;
+    return false;
+  }
+
   // Connect to Socket
   if (connect(mUDPSocket, (sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
     errorPrint(
@@ -329,7 +346,7 @@ bool WirelessFT::udpStopStreaming()
   // bytes  stop streaming:
   //  2     length including crc = 6
   //  1     sequence number, 0,1,2,...255,0,...
-  //  1     value 1 = start_streaming_command
+  //  1     value 2 = stop_streaming_command
   //  2     crc
 
   char buffer[6];
@@ -346,6 +363,32 @@ bool WirelessFT::udpStopStreaming()
   size_t n = send(mUDPSocket, &buffer, length, MSG_NOSIGNAL);
   verbosePrint(mVerbose, string_format("udpStopStreaming: wrote %d bytes", n));
   mIsStreaming = false;
+
+  return (n == length);
+}
+
+bool WirelessFT::udpResetTelnet()
+{
+  verbosePrint(mVerbose, "udpResetTelnet");
+  // bytes  reset telnet:
+  //  2     length including crc = 6
+  //  1     sequence number, 0,1,2,...255,0,...
+  //  1     value 5 = reset_telnet_command
+  //  2     crc
+
+  char buffer[6];
+  buffer[0] = 0;
+  buffer[1] = (unsigned char)(0x00FF & 6);  // length including crc
+  buffer[2] = mUDPCommandSequence++;        // seq-number
+  buffer[3] = (unsigned char)5;             // reset_telnet
+
+  unsigned short crc = crcBuf(buffer, 4);
+  buffer[4] = (unsigned char)(crc >> 8);
+  buffer[5] = (unsigned char)(crc & 0x00ff);
+
+  unsigned int length = 6;
+  size_t n = send(mUDPSocket, &buffer, length, MSG_NOSIGNAL);
+  verbosePrint(mVerbose, string_format("udpResetTelnet: wrote %d bytes", n));
 
   return (n == length);
 }
@@ -418,7 +461,10 @@ toSystemTimestamp(unsigned long timestamp)
 WirelessFTDataPacket WirelessFT::readDataPacket()
 {
   WirelessFTDataPacket ret;
-  if (!mIsStreaming) return ret;
+  if (!mIsStreaming) {
+    errorPrint("Cannot read data packet when not streaming");
+    return ret;
+  }
 
   // Read packet from socket
   UDPPacket buffer;
@@ -449,6 +495,7 @@ WirelessFTDataPacket WirelessFT::readDataPacket()
   }
 
   ret.valid = true;
+  verbosePrint(mVerbose, "Read Data Packet");
   return ret;
 }
 

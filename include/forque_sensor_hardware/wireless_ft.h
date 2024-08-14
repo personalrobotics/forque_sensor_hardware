@@ -168,6 +168,7 @@ public:
   bool udpClose();
   bool udpStartStreaming();
   bool udpStopStreaming();
+  bool udpResetTelnet();
 
   // Reads a single datagram
   WirelessFTDataPacket readDataPacket();
