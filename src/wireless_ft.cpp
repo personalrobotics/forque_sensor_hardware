@@ -132,18 +132,12 @@ bool WirelessFT::telnetDisconnect()
   std::lock_guard<std::mutex> guard(mTCPMutex);
 
   try {
-    verbosePrint(mVerbose, "telnetDisconnect A");
     if (mTelnetSocket >= 0) {
       ::shutdown(mTelnetSocket, SHUT_RDWR);
-      verbosePrint(mVerbose, "telnetDisconnect B");
       close(mTelnetSocket);
-      verbosePrint(mVerbose, "telnetDisconnect C");
       mTelnetSocket = -1;
-      verbosePrint(mVerbose, "telnetDisconnect D");
     }
-    verbosePrint(mVerbose, "telnetDisconnect E");
   } catch (...) {
-    verbosePrint(mVerbose, "telnetDisconnect F");
     return false;
   }
 
@@ -228,6 +222,14 @@ bool WirelessFT::setBias(bool bias, unsigned int transducer)
   } else {
     command = string_format("bias %d %s\r\n", transducer, bias ? "ON" : "OFF");
   }
+
+  return telnetCommand(response, command);
+}
+
+bool WirelessFT::enableNTP(bool enable)
+{
+  std::string response;
+  std::string command = string_format("ntp enable %d\r\n", enable ? 1 : 0);
 
   return telnetCommand(response, command);
 }

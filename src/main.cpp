@@ -255,6 +255,20 @@ bool init_telnet() {
   mRate = rate;
   mOversample = oversample;
 
+  // Disable and Re-enable NTP
+  if (!mWFT->enableNTP(false)) {
+    RCLCPP_ERROR(get_logger(), "Cannot disable NTP");
+    return false;
+  }
+  if (!mWFT->enableNTP(true)) {
+    RCLCPP_ERROR(get_logger(), "Cannot enable NTP");
+    return false;
+  }
+  RCLCPP_DEBUG(
+    get_logger(),
+    "Re-enable NTP succeeded."
+  );
+
   {
     std::lock_guard<std::mutex> lock(mTelnetDeadMutex);
     mTelnetDead = false;
