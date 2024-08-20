@@ -161,6 +161,9 @@ public:
   // 0 == all transducers
   bool setBias(bool bias = true, unsigned int transducer = 0);
 
+  // Enable NTP time synchronization
+  bool enableNTP(bool enable = true);
+
   // Mostly for internal use
   bool telnetCommand(std::string & response, std::string command, unsigned int micros = 500000);
 
@@ -168,6 +171,7 @@ public:
   bool udpClose();
   bool udpStartStreaming();
   bool udpStopStreaming();
+  bool udpResetTelnet();
 
   // Reads a single datagram
   WirelessFTDataPacket readDataPacket();

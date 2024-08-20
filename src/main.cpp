@@ -148,78 +148,178 @@ public:
   }
 
   bool init() {
-    // Get Parameters
-    auto host = get_parameter("host").get_parameter_value().get<std::string>();
-    auto tcpport = get_parameter("tcpport").get_parameter_value().get<int>();
-    auto udpport = get_parameter("udpport").get_parameter_value().get<int>();
-    auto keepalive_s = std::chrono::duration<double>(
-        get_parameter("keepalive_s").get_parameter_value().get<double>());
+    RCLCPP_DEBUG(
+      get_logger(),
+      "Initializing the Wireless F/T Sensor Node."
+    );
 
-    // Start up WFT
-    if (!mWFT->telnetConnect(host, tcpport)) {
-      RCLCPP_ERROR(get_logger(), "Cannot connect to F/T telnet.");
-      return false;
-    }
-    if (!mWFT->udpConfigure(host, udpport)) {
-      mWFT->telnetDisconnect();
-      RCLCPP_ERROR(get_logger(), "Cannot connect to F/T UDP.");
-      return false;
-    }
-
-    // Initially no bias (requires service call)
-    mWFT->setBias(false);
-
-    // Set Initial Rate
-    auto rate = get_parameter("rate").get_parameter_value().get<int>();
-    auto oversample =
-        get_parameter("oversample").get_parameter_value().get<int>();
-    if (!mWFT->setRate(rate, oversample)) {
-      RCLCPP_WARN(get_logger(),
-                  "Provided rate/oversample failed, reverting to default.");
-      rate = 50;
-      oversample = 2;
-      if (!mWFT->setRate(rate, oversample)) {
-        RCLCPP_ERROR(get_logger(), "Cannot set rate");
+    {
+      std::lock_guard<std::mutex> lock(mUDPMutex);
+      if (!init_udp()) {
+        RCLCPP_ERROR(get_logger(), "Cannot initialize UDP");
         return false;
       }
     }
-    mRate = rate;
-    mOversample = oversample;
 
-    // Set up publishers
-    for (int i = 0; i < NUMBER_OF_TRANSDUCERS; i++) {
-      mPublishers.push_back(create_publisher<geometry_msgs::msg::WrenchStamped>(
-          string_format("~/ftSensor%d", i + 1),
-          rclcpp::QoS(1).best_effort().durability_volatile()));
-    }
+    {
+      std::lock_guard<std::mutex> lock(mTelnetMutex);
+      if (!init_telnet()) {
+        RCLCPP_ERROR(get_logger(), "Cannot initialize Telnet");
+        return false;
+      }
+    }  
 
-    // Start WFT UDP Streaming
-    mWFT->udpStartStreaming();
-
-    // Timer for Polling / Publishing
-    // First Init Only
-    if (mFirstInit) {
-      mFirstInit = false;
-
-      mTimer = this->create_wall_timer(
-          1ms, std::bind(&WirelessFTNode::timer_callback, this),
-          mTimerCallbackGroup);
-      mKeepAlive = this->create_wall_timer(
-          keepalive_s, std::bind(&WirelessFTNode::keep_alive_callback, this),
-          mKeepAliveCallbackGroup);
-
-      // Service for Bias
-      mService = create_service<std_srvs::srv::SetBool>(
-          "~/set_bias",
-          std::bind(&WirelessFTNode::bias_callback, this, std::placeholders::_1,
-                    std::placeholders::_2),
-          rmw_qos_profile_services_default, mServiceCallbackGroup);
+    if (!init_ros()) {
+      RCLCPP_ERROR(get_logger(), "Cannot initialize ROS");
+      return false;
     }
 
     RCLCPP_INFO(get_logger(), "Initialization Successful");
-    mIsAlive = true;
     return true;
   }
+
+bool init_udp() {
+  auto host = get_parameter("host").get_parameter_value().get<std::string>();
+  auto udpport = get_parameter("udpport").get_parameter_value().get<int>();
+
+  if (!mWFT->udpConfigure(host, udpport)) {
+    RCLCPP_ERROR(get_logger(), "Cannot connect to F/T UDP.");
+    return false;
+  }
+  RCLCPP_DEBUG(
+    get_logger(),
+    "UDP configure succeeded."
+  );
+  if (!mWFT-> udpResetTelnet()) {
+    RCLCPP_ERROR(get_logger(), "Cannot reset telnet overUDP.");
+    return false;
+  }
+  RCLCPP_DEBUG(
+    get_logger(),
+    "UDP reset telnet succeeded."
+  );
+  if (!mWFT->udpStartStreaming()) {
+    RCLCPP_ERROR(get_logger(), "Cannot start UDP streaming.");
+    return false;
+  }
+  RCLCPP_DEBUG(
+    get_logger(),
+    "Start streaming succeeded."
+  );
+
+  {
+    std::lock_guard<std::mutex> lock(mIsAliveMutex);
+    mIsAlive = true;
+  }
+  return true;
+}
+
+bool init_telnet() {
+  auto host = get_parameter("host").get_parameter_value().get<std::string>();
+  auto tcpport = get_parameter("tcpport").get_parameter_value().get<int>();
+
+  if (!mWFT->telnetConnect(host, tcpport)) {
+    RCLCPP_ERROR(get_logger(), "Cannot connect to F/T telnet.");
+    return false;
+  }
+  RCLCPP_DEBUG(
+    get_logger(),
+    "Telnet configure succeeded."
+  );
+
+  // Initially no bias (requires service call)
+  mWFT->setBias(false);
+  RCLCPP_DEBUG(
+    get_logger(),
+    "SetBias succeeded."
+  );
+
+  // Set Initial Rate
+  auto rate = get_parameter("rate").get_parameter_value().get<int>();
+  auto oversample =
+      get_parameter("oversample").get_parameter_value().get<int>();
+  if (!mWFT->setRate(rate, oversample)) {
+    RCLCPP_WARN(get_logger(),
+                "Provided rate/oversample failed, reverting to default.");
+    rate = 50;
+    oversample = 2;
+    if (!mWFT->setRate(rate, oversample)) {
+      RCLCPP_ERROR(get_logger(), "Cannot set rate");
+      return false;
+    }
+  }
+  RCLCPP_DEBUG(
+    get_logger(),
+    "Set rate succeeded."
+  );
+  mRate = rate;
+  mOversample = oversample;
+
+  // Disable and Re-enable NTP
+  if (!mWFT->enableNTP(false)) {
+    RCLCPP_ERROR(get_logger(), "Cannot disable NTP");
+    return false;
+  }
+  if (!mWFT->enableNTP(true)) {
+    RCLCPP_ERROR(get_logger(), "Cannot enable NTP");
+    return false;
+  }
+  RCLCPP_DEBUG(
+    get_logger(),
+    "Re-enable NTP succeeded."
+  );
+
+  {
+    std::lock_guard<std::mutex> lock(mTelnetDeadMutex);
+    mTelnetDead = false;
+  }
+  return true;
+}
+
+bool init_ros() {
+  auto keepalive_s = std::chrono::duration<double>(
+        get_parameter("keepalive_s").get_parameter_value().get<double>());
+
+  RCLCPP_DEBUG(
+    get_logger(),
+    "init_ros"
+  );
+
+  // Set up publishers
+  for (int i = 0; i < NUMBER_OF_TRANSDUCERS; i++) {
+    mPublishers.push_back(create_publisher<geometry_msgs::msg::WrenchStamped>(
+        string_format("~/ftSensor%d", i + 1),
+        rclcpp::QoS(1).best_effort().durability_volatile()));
+  }
+  RCLCPP_DEBUG(
+    get_logger(),
+    "Set up publishers succeeded."
+  );
+
+  mTimer = this->create_wall_timer(
+      1ms, std::bind(&WirelessFTNode::timer_callback, this),
+      mTimerCallbackGroup);
+  RCLCPP_DEBUG(
+    get_logger(),
+    "Created timer."
+  );
+  mKeepAlive = this->create_wall_timer(
+      keepalive_s, std::bind(&WirelessFTNode::keep_alive_callback, this),
+      mKeepAliveCallbackGroup);
+
+  // Service for Bias
+  mService = create_service<std_srvs::srv::SetBool>(
+      "~/set_bias",
+      std::bind(&WirelessFTNode::bias_callback, this, std::placeholders::_1,
+                std::placeholders::_2),
+      rmw_qos_profile_services_default, mServiceCallbackGroup);
+  RCLCPP_DEBUG(
+    get_logger(),
+    "Created service."
+  );
+
+  return true;
+}
 
 private:
   // For setting new rate / oversample
@@ -259,28 +359,60 @@ private:
 
   // Check if alive, and if not, re-init
   void keep_alive_callback() {
-    if (!mIsAlive || mTelnetDead) {
-      RCLCPP_WARN(get_logger(), "KeepAlive Failed, re-init");
-      // Disconnect and Re-connect
-      mTelnetDead = true;
-      mWFT->udpClose();
-      mWFT->telnetDisconnect();
-
-      this->init();
-      mTelnetDead = false;
-      return;
+    RCLCPP_DEBUG(get_logger(), "In keep alive callback");
+    // Check UDP
+    bool isAlive;
+    {
+      std::lock_guard<std::mutex> lock(mIsAliveMutex);
+      isAlive = mIsAlive;
     }
-    mIsAlive = false;
+    if (!isAlive) {
+      RCLCPP_WARN(get_logger(), "KeepAlive UDP Failed, re-init");
+      // Disconnect and Re-connect
+      std::lock_guard<std::mutex> lock(mUDPMutex);
+      mWFT->udpStopStreaming();
+      mWFT->udpClose();
+      this->init_udp();
+    }
+    // If it doesn't get a UDP packet before the next keepalive, then it's
+    // no longer alive
+    {
+      std::lock_guard<std::mutex> lock(mIsAliveMutex);
+      mIsAlive = false;
+    }
+
+    // Check Telnet
+    bool telnetDead;
+    {
+      std::lock_guard<std::mutex> lock(mTelnetDeadMutex);
+      telnetDead = mTelnetDead;
+    }
+    if (telnetDead) {
+      RCLCPP_WARN(get_logger(), "KeepAlive Telnet Failed, re-init");
+      // Disconnect and Re-connect
+      std::lock_guard<std::mutex> lock(mTelnetMutex);
+      mWFT->telnetDisconnect();
+      this->init_telnet();
+    }
   }
 
   // For reading from F/T Sensor and publishing wrench
   void timer_callback() {
-    auto packet = mWFT->readDataPacket();
+    RCLCPP_DEBUG(get_logger(), "In timer callback");
+    WirelessFTDataPacket packet;
+    {
+      std::lock_guard<std::mutex> lock(mUDPMutex);
+      packet = mWFT->readDataPacket();
+    }
+    RCLCPP_DEBUG(get_logger(), "Read data packet");
     if (!packet.valid) {
       RCLCPP_DEBUG(get_logger(), "Skipping Invalid Packet");
       return;
     }
-    mIsAlive = true;
+    {
+      std::lock_guard<std::mutex> lock(mIsAliveMutex);
+      mIsAlive = true;
+    }
 
     // Convert to ROS Timestamp
     std::int32_t secs =
@@ -329,7 +461,12 @@ private:
                 std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
     RCLCPP_INFO(get_logger(), "Started setting bias...");
 
-    if (mTelnetDead) {
+    bool telnetDead;
+    {
+      std::lock_guard<std::mutex> lock(mTelnetDeadMutex);
+      telnetDead = mTelnetDead;
+    }
+    if (telnetDead) {
       response->success = false;
       response->message = "reconnecting to telnet";
       return;
@@ -338,10 +475,19 @@ private:
     response->success = true;
     response->message = "re-taring success";
 
-    if (!mWFT->setBias(request->data)) {
+    bool set_bias_retval;
+    {
+      std::lock_guard<std::mutex> lock(mTelnetMutex);
+      set_bias_retval = mWFT->setBias(request->data);
+    }
+    if (!set_bias_retval) {
       response->success = false;
       response->message = "error in setBias";
-      mTelnetDead = true; // Schedule TCP socket reset
+      // Schedule TCP socket reset
+      {
+        std::lock_guard<std::mutex> lock(mTelnetDeadMutex);
+        mTelnetDead = true;
+      }
     }
     RCLCPP_INFO(get_logger(), "...finished setting bias!");
   }
@@ -350,10 +496,15 @@ private:
   int mRate;
   int mOversample;
 
-  // Keep Alive
-  std::atomic<bool> mIsAlive = true;
-  std::atomic<bool> mTelnetDead = false;
-  bool mFirstInit = true;
+  // Keep Alive - UDP
+  std::mutex mIsAliveMutex;
+  std::mutex mUDPMutex;
+  std::atomic<bool> mIsAlive = true; // Whether UDP is alive
+
+  // Keep Alive - Telnet
+  std::mutex mTelnetDeadMutex;
+  std::mutex mTelnetMutex;
+  std::atomic<bool> mTelnetDead = false; // Whether TCP (telnet) is dead
 
   // ROS Objects
   OnSetParametersCallbackHandle::SharedPtr mCallbackHandle;
@@ -372,10 +523,15 @@ int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
 
   // Init Wireless F/T and Node
-  auto wft = std::make_shared<WirelessFT>();
+  bool verbose = false;
+  auto wft = std::make_shared<WirelessFT>(verbose);
   auto node = std::make_shared<WirelessFTNode>(wft);
   if (!node->init()) {
     rclcpp::shutdown();
+    // Cleanup Wireless F/T
+    wft->udpStopStreaming();
+    wft->udpClose();
+    wft->telnetDisconnect();
     return -1;
   }
 
