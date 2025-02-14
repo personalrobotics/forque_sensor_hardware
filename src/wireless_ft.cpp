@@ -42,6 +42,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
+#include <cerrno>
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -234,7 +235,7 @@ bool WirelessFT::enableNTP(bool enable)
   return telnetCommand(response, command);
 }
 
-bool WirelessFT::udpConfigure(std::string hostname, int port)
+bool WirelessFT::udpConfigure(std::string hostname, int ft_port, int local_port)
 {
   std::lock_guard<std::mutex> guard(mUDPMutex);
   verbosePrint(mVerbose, "udpConfigure");
@@ -251,10 +252,11 @@ bool WirelessFT::udpConfigure(std::string hostname, int port)
     return false;
   }
 
+  // Configure the F/T transmitter side of the socket
   struct sockaddr_in serv_addr;
   bzero((char *)&serv_addr, sizeof(serv_addr));
   serv_addr.sin_family = AF_INET;
-  serv_addr.sin_port = htons(port);
+  serv_addr.sin_port = htons(ft_port);
   bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
 
   // Initialize Socket
@@ -262,6 +264,32 @@ bool WirelessFT::udpConfigure(std::string hostname, int port)
   if (mUDPSocket < 0) {
     errorPrint("Cannot init socket");
     return false;
+  }
+
+  // Configure the local side of the socket
+  if (local_port >= 0) {
+    struct sockaddr_in localAddr;
+    bzero((char *)&localAddr, sizeof(localAddr));
+    localAddr.sin_family = AF_INET;
+    localAddr.sin_addr.s_addr = INADDR_ANY;  // Listen on all interfaces
+    localAddr.sin_port = htons(local_port);  // Set local port
+    if (bind(mUDPSocket, (struct sockaddr *)&localAddr, sizeof(localAddr)) < 0) {
+        errorPrint(
+          string_format(
+"Failed to bind to local port %d. The recommended fix is to change \
+the local port. Due to an idiosynchracy of the F/T sensor, once you change the \
+local port, you need to: (1) run this code again (it won't receive packets); \
+(2) physically power cycle the F/T sensor; and (3) run this code again. \
+Essentially, the reason for this is that when it is asked to change the UDP port \
+it is streaming data to, the F/T sensor stores that UDP port, closes the old socket, \
+but fails to open a new socket. However, when it turns on again, it opens a UDP socket \
+to that last-specified port.", local_port
+          )
+        );
+        close(mUDPSocket);
+        mUDPSocket = -1;
+        return false;
+    }
   }
 
   // Set a timeout on the socket
@@ -278,10 +306,20 @@ bool WirelessFT::udpConfigure(std::string hostname, int port)
   // Connect to Socket
   if (connect(mUDPSocket, (sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
     errorPrint(
-      string_format("error connecting to socket at host '%s' port '%d'", hostname.c_str(), port));
+      string_format("error connecting to socket at host '%s' port '%d'", hostname.c_str(), ft_port));
     close(mUDPSocket);
     mUDPSocket = -1;
     return false;
+  }
+
+  // Get and print the local port that was assigned.
+  struct sockaddr_in localAddr;
+  socklen_t addrLen = sizeof(localAddr);
+  if (getsockname(mUDPSocket, (struct sockaddr*)&localAddr, &addrLen) == 0) {
+    verbosePrint(mVerbose, 
+      string_format("Local port: %d", ntohs(localAddr.sin_port)));
+  } else {
+    errorPrint("Error getting local socket port");
   }
 
   return true;
@@ -474,7 +512,11 @@ WirelessFTDataPacket WirelessFT::readDataPacket()
 
   int n = read(mUDPSocket, &buffer, sizeof(UDPPacket));
   if (n < 0) {
-    errorPrint("Cannot read UDP Data Packet");
+    errorPrint(
+      string_format(
+        "Cannot read UDP Data Packet. Error %d, %s", errno, strerror(errno)
+      )
+    );
     return ret;
   }
 
