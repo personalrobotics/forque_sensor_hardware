@@ -167,7 +167,7 @@ public:
   // Mostly for internal use
   bool telnetCommand(std::string & response, std::string command, unsigned int micros = 500000);
 
-  bool udpConfigure(std::string hostname, int port = DEFAULT_UDP_PORT);
+  bool udpConfigure(std::string hostname, int ft_port = DEFAULT_UDP_PORT, int local_port = DEFAULT_UDP_PORT);
   bool udpClose();
   bool udpStartStreaming();
   bool udpStopStreaming();

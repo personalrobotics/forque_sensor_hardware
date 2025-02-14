@@ -139,9 +139,15 @@ public:
 
     param_desc.name = "udpport";
     param_desc.type = rclcpp::ParameterType::PARAMETER_INTEGER;
-    param_desc.description = "UDP Port for Packet Commands, Default 49152";
+    param_desc.description = "UDP Port on the F/T transmitter for Packet Commands, Default 49152";
     param_desc.read_only = true;
     declare_parameter("udpport", DEFAULT_UDP_PORT, param_desc);
+
+    param_desc.name = "local_udpport";
+    param_desc.type = rclcpp::ParameterType::PARAMETER_INTEGER;
+    param_desc.description = "UDP Port on the local machine for Packet Commands, Default 49152. If -1, assign any available port.";
+    param_desc.read_only = true;
+    declare_parameter("local_udpport", DEFAULT_UDP_PORT, param_desc);
 
     mCallbackHandle = add_on_set_parameters_callback(std::bind(
         &WirelessFTNode::parametersCallback, this, std::placeholders::_1));
@@ -180,9 +186,10 @@ public:
 
 bool init_udp() {
   auto host = get_parameter("host").get_parameter_value().get<std::string>();
-  auto udpport = get_parameter("udpport").get_parameter_value().get<int>();
+  auto ft_udpport = get_parameter("udpport").get_parameter_value().get<int>();
+  auto local_udpport = get_parameter("local_udpport").get_parameter_value().get<int>();
 
-  if (!mWFT->udpConfigure(host, udpport)) {
+  if (!mWFT->udpConfigure(host, ft_udpport, local_udpport)) {
     RCLCPP_ERROR(get_logger(), "Cannot connect to F/T UDP.");
     return false;
   }
